@@ -1,0 +1,86 @@
+.taskbar {
+  height: 30px; flex-shrink: 0;
+  background: linear-gradient(180deg, #245edc 0%, #1a4bc4 45%, #1e50cc 55%, #2255d4 100%);
+  border-top: 1px solid #6888e8;
+  display: flex; align-items: center;
+  padding: 0 2px; gap: 4px;
+  position: relative; z-index: 500;
+}
+
+/* ── Start button ── */
+.startBtn {
+  height: 24px; padding: 0 10px 0 4px;
+  background: linear-gradient(180deg, #58b030 0%, #3a8c18 45%, #3a8c18 55%, #4ca028 100%);
+  border: 1px solid #267010; border-radius: 0 12px 12px 0;
+  display: flex; align-items: center; gap: 5px;
+  cursor: pointer; outline: none;
+  box-shadow: 1px 0 4px rgba(0,0,0,0.3);
+}
+.startBtn:hover  { filter: brightness(1.1); }
+.startActive     { filter: brightness(0.88); }
+
+.startFlag {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 1px;
+  width: 16px; height: 16px;
+}
+.fp  { border-radius: 1px; }
+.fpR { background: #f35325; }
+.fpG { background: #81bc06; }
+.fpB { background: #05a6f0; }
+.fpY { background: #ffba08; }
+
+.startText {
+  font-family: 'Tahoma', sans-serif; font-size: 13px;
+  font-weight: bold; font-style: italic;
+  color: #fff; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+  letter-spacing: 0.5px;
+}
+
+/* ── Separator ── */
+.sep {
+  width: 2px; height: 22px; flex-shrink: 0;
+  background: linear-gradient(to bottom, #1040a8, #2860d8, #1040a8);
+  border-left: 1px solid #0a2880; border-right: 1px solid #3870e0;
+  margin: 0 2px;
+}
+
+/* ── Window buttons ── */
+.windowList { flex: 1; display: flex; gap: 3px; overflow: hidden; }
+.winBtn {
+  height: 22px; min-width: 80px; max-width: 150px;
+  padding: 0 8px;
+  background: linear-gradient(180deg, #4878d0 0%, #2858b8 50%, #3060c0 100%);
+  border: 1px solid #1840a0; border-radius: 3px;
+  color: #fff; font-family: 'Tahoma', sans-serif; font-size: 11px;
+  cursor: pointer; display: flex; align-items: center; gap: 4px;
+  overflow: hidden;
+}
+.winBtn:hover { filter: brightness(1.15); }
+.winActive {
+  background: linear-gradient(180deg, #2040a8 0%, #1838a0 50%, #2040b0 100%);
+  border-color: #828808; box-shadow: inset 1px 1px 3px rgba(0,0,0,0.4);
+}
+.winLabel { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+/* ── System tray ── */
+.tray {
+  display: flex; align-items: center; gap: 6px;
+  padding: 0 8px;
+  background: linear-gradient(180deg, #1848b8 0%, #1040a8 50%, #1848b8 100%);
+  border: 1px solid #a30888; border-radius: 2px;
+  height: 22px;
+}
+.clock {
+  font-size: 11px; font-family: 'Tahoma', sans-serif; color: #fff;
+  white-space: nowrap;
+}
+.trayWarning {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #ff3333;
+  box-shadow: 0 0 4px #ff3333;
+  animation: warnPulse 1.5s ease-in-out infinite;
+}
+@keyframes warnPulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 4px #ff3333; }
+  50%       { opacity: 0.4; box-shadow: 0 0 8px #ff6666; }
+}

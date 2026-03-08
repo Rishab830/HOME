@@ -1,0 +1,69 @@
+.window {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  background: #ece9d8;
+  border: 3px solid #2255c8;
+  border-radius: 8px 8px 0 0;
+  box-shadow: 3px 3px 10px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(255,255,255,0.25);
+  overflow: hidden;
+  min-width: 220px;
+  min-height: 120px;
+  z-index: 10;
+  font-family: 'Tahoma', 'Verdana', sans-serif;
+}
+.active   { border-color: #0855c8; z-index: 100; }
+.inactive { border-color: #8aa8d8; }
+.maximized {
+  position: fixed !important;
+  left: 0 !important; top: 0 !important;
+  width: 100vw !important;
+  height: calc(100vh - 30px) !important;
+  border-radius: 0; border: none;
+  z-index: 90;
+}
+
+/* ── Title bar ── */
+.titleBar {
+  height: 28px; flex-shrink: 0;
+  display: flex; align-items: center;
+  padding: 0 4px 0 6px; gap: 5px;
+  cursor: move; user-select: none;
+  border-radius: 5px 5px 0 0;
+}
+.active .titleBar {
+  background: linear-gradient(180deg,
+    #4d8fea 0%, #2165c8 8%, #1b55c0 42%,
+    #1248b0 50%, #1555bc 58%, #1e70d4 90%, #2878d8 100%);
+}
+.inactive .titleBar {
+  background: linear-gradient(180deg,
+    #9ab4d4 0%, #7a9cc8 10%, #6888b4 50%,
+    #7090bc 60%, #7a9cc8 90%, #88aacc 100%);
+}
+.titleIcon { font-size: 14px; line-height: 1; }
+.titleText {
+  flex: 1; font-size: 12px; font-weight: bold;
+  color: #fff; text-shadow: 1px 1px 2px rgba(0,0,0,0.55);
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+
+/* ── Control buttons ── */
+.controls { display: flex; gap: 2px; }
+.btn {
+  width: 21px; height: 21px; border-radius: 3px;
+  border: 1px solid rgba(0,0,0,0.35);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 11px; font-weight: bold;
+  transition: filter 0.1s;
+}
+.btn:hover  { filter: brightness(1.2); }
+.btn:active { filter: brightness(0.8); }
+.btnMin   { background: linear-gradient(180deg, #f9cc6a, #e09020); border-color: #9c6410; }
+.btnMax   { background: linear-gradient(180deg, #72cc50, #3a9018); border-color: #1e5010; }
+.btnClose { background: linear-gradient(180deg, #f86060, #d01010); border-color: #800808; color: #fff; }
+.iconMin  { display: block; width: 8px; height: 2px; background: #5a3a00; margin-top: 6px; }
+.iconMax  { display: block; width: 7px; height: 7px; border: 1.5px solid #183010; }
+
+/* ── Content area ── */
+.content { flex: 1; overflow: hidden; display: flex; flex-direction: column; }

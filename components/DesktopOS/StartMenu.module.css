@@ -1,0 +1,320 @@
+/* ── Menu container ──────────────────────────────────────────────────────── */
+.menu {
+  position: fixed;
+  bottom: 30px;          /* sits right above the taskbar */
+  left: 0;
+  width: 400px;
+  display: flex;
+  flex-direction: column;
+  border-radius: 0 8px 0 0;
+  overflow: hidden;
+  box-shadow:
+    3px -3px 12px rgba(0,0,0,0.6),
+    1px -1px 0   rgba(255,255,255,0.15) inset;
+  z-index: 600;
+  font-family: 'Tahoma', 'Verdana', sans-serif;
+  font-size: 12px;
+  /* Entrance animation */
+  animation: menuOpen 0.12s ease-out;
+  transform-origin: bottom left;
+}
+@keyframes menuOpen {
+  from { opacity: 0; transform: scaleY(0.92); }
+  to   { opacity: 1; transform: scaleY(1);    }
+}
+
+/* ── Two-column body ─────────────────────────────────────────────────────── */
+.body {
+  display: flex;
+  flex: 1;
+}
+
+/* ── LEFT COLUMN ─────────────────────────────────────────────────────────── */
+.left {
+  width: 170px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, #1648a8 0%, #1240a0 100%);
+}
+
+/* User panel at the top of left column */
+.userPanel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px 10px;
+  background: linear-gradient(180deg, #1a50b8 0%, #1040a0 100%);
+  border-bottom: 1px solid #0a2880;
+  min-height: 58px;
+}
+
+.userAvatar {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 3px;
+  border: 2px solid rgba(255,255,255,0.5);
+  background: rgba(0,0,30,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.username {
+  font-size: 14px;
+  font-weight: bold;
+  color: #fff;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.6);
+}
+.corruptedText {
+  color: #ff8888;
+  animation: textGlitch 3s infinite;
+}
+@keyframes textGlitch {
+  0%, 90%, 100% { opacity: 1; transform: none; }
+  92%            { opacity: 0.7; transform: translateX(-2px); color: #ff4444; }
+  94%            { opacity: 1;   transform: none; }
+}
+
+/* Pinned apps section */
+.pinnedSection {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 6px 0;
+  background: #fff;
+  overflow-y: auto;
+}
+
+.leftItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  width: 100%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  outline: none;
+  transition: background 0.08s;
+  min-height: 34px;
+}
+.leftItem:hover {
+  background: #316ac5;
+}
+.leftItem:hover .itemLabel { color: #fff; }
+.leftItem:hover .itemSub   { color: rgba(255,255,255,0.75); }
+
+.itemIcon {
+  font-size: 18px;
+  width: 24px;
+  text-align: center;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.itemTextWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.itemLabel {
+  font-size: 12px;
+  font-weight: bold;
+  color: #000;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.itemSub {
+  font-size: 10px;
+  color: #666;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.itemSubCreepy {
+  color: #aa2222 !important;
+  font-style: italic;
+}
+
+/* All Programs button */
+.allProgramsSep {
+  height: 1px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.1), rgba(255,255,255,0.3), rgba(255,255,255,0.1));
+  margin: 0 6px;
+}
+
+.allPrograms {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-family: 'Tahoma', sans-serif;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  outline: none;
+  transition: background 0.08s;
+}
+.allPrograms:hover { background: rgba(255,255,255,0.12); }
+.allProgramsIcon {
+  font-size: 11px;
+  color: #90cc40;
+  font-style: normal;
+  margin-left: auto;
+  order: 2;
+}
+.allPrograms span { order: 2; }
+
+/* ── RIGHT COLUMN ────────────────────────────────────────────────────────── */
+.right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, #d8e8f8 0%, #cce0f8 100%);
+  padding: 8px 0;
+  overflow-y: auto;
+}
+
+.rightItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  width: 100%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  outline: none;
+  transition: background 0.08s;
+  min-height: 28px;
+}
+.rightItem:hover {
+  background: #316ac5;
+}
+.rightItem:hover .rightLabel { color: #fff; }
+.rightItem:hover .rightArrow { color: rgba(255,255,255,0.7); }
+
+.rightIcon {
+  font-size: 16px;
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.rightLabel {
+  flex: 1;
+  font-size: 12px;
+  color: #000;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rightArrow {
+  font-size: 9px;
+  color: #666;
+  flex-shrink: 0;
+}
+
+.rightSep {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #a8c0d8 20%, #a8c0d8 80%, transparent);
+  margin: 4px 8px;
+}
+
+/* Horror: the Exit item */
+.exitItem .rightLabel {
+  color: #aa0000 !important;
+  font-style: italic;
+}
+.exitItem:hover .rightLabel { color: #fff !important; }
+.exitItem { animation: exitPulse 3s ease-in-out infinite; }
+@keyframes exitPulse {
+  0%, 100% { background: transparent; }
+  50%       { background: rgba(180, 0, 0, 0.06); }
+}
+
+/* ── BOTTOM ACTION BAR ───────────────────────────────────────────────────── */
+.bottomBar {
+  height: 38px;
+  background: linear-gradient(180deg, #1848b8 0%, #0e38a0 100%);
+  border-top: 1px solid #0a2878;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 8px;
+  gap: 4px;
+}
+
+.bottomBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  background: linear-gradient(180deg, #2858b8 0%, #1848a8 50%, #1040a0 100%);
+  border: 1px solid #0a2878;
+  border-radius: 12px;
+  color: #fff;
+  font-family: 'Tahoma', sans-serif;
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.25),
+    0 1px 3px rgba(0,0,0,0.4);
+  transition: filter 0.1s;
+}
+.bottomBtn:hover  { filter: brightness(1.15); }
+.bottomBtn:active { filter: brightness(0.9);  }
+
+.bottomBtnIcon {
+  font-size: 13px;
+  line-height: 1;
+}
+.bottomBtnIconPower {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #ff9a30, #c04808);
+  border: 1px solid #802008;
+  font-size: 11px;
+  box-shadow: 0 0 4px rgba(200,70,0,0.5);
+}
+
+.rightTextWrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* override the flex:1 on rightLabel since it's now inside the wrap */
+.rightTextWrap .rightLabel {
+  flex: unset;
+}
+
+.rightSub {
+  font-size: 10px;
+  color: #aa2222;
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

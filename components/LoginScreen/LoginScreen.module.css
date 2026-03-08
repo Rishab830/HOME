@@ -1,0 +1,694 @@
+/* ── Base screen ─────────────────────────────────────────────────────────── */
+.screen {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  font-family: 'Tahoma', 'Franklin Gothic Medium', 'Verdana', sans-serif;
+  color: #fff;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* Phosphor grain overlay */
+.screen::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 999;
+  opacity: 0.02;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-size: 128px 128px;
+}
+
+/* Vignette */
+.screen::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 998;
+  background: radial-gradient(ellipse at 50% 50%,
+    transparent 50%,
+    rgba(0, 0, 0, 0.3) 100%
+  );
+}
+
+/* Scanlines */
+.scanlines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 3px,
+    rgba(0, 0, 0, 0.04) 3px,
+    rgba(0, 0, 0, 0.04) 4px
+  );
+  opacity: 0;
+  transition: opacity 1s ease;
+}
+.corrupted  > .scanlines { opacity: 1; }
+.aggressive > .scanlines { opacity: 1; animation: scanScroll 0.08s linear infinite; }
+@keyframes scanScroll {
+  from { background-position: 0 0; }
+  to   { background-position: 0 4px; }
+}
+
+/* ── Top stripe (thin accent bar at very top) ────────────────────────────── */
+.topStripe {
+  height: 8px;
+  flex-shrink: 0;
+  background: linear-gradient(180deg, #5888d8 0%, #2050b0 100%);
+  border-bottom: 1px solid #1a3a88;
+  z-index: 10;
+}
+
+/* ── Main split ──────────────────────────────────────────────────────────── */
+.main {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+  z-index: 2;
+}
+
+/* ── LEFT PANEL — welcome side ───────────────────────────────────────────── */
+.leftPanel {
+  width: 38%;
+  flex-shrink: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 48px;
+
+  /* Blue sky gradient approximation */
+  background:
+    /* Clouds — soft white blobs */
+    radial-gradient(ellipse 280px 90px at 20% 35%, rgba(255,255,255,0.55) 0%, transparent 100%),
+    radial-gradient(ellipse 200px 70px at 55% 25%, rgba(255,255,255,0.45) 0%, transparent 100%),
+    radial-gradient(ellipse 240px 80px at 80% 40%, rgba(255,255,255,0.4)  0%, transparent 100%),
+    radial-gradient(ellipse 160px 60px at 35% 60%, rgba(255,255,255,0.25) 0%, transparent 100%),
+    /* Sky gradient — lighter at top, slightly deeper blue lower */
+    linear-gradient(175deg,
+      #5a9de8 0%,
+      #4a8cdc 15%,
+      #3a78cc 35%,
+      #3272c4 55%,
+      #2a68bc 75%,
+      #2260b4 100%
+    );
+}
+
+.welcomeContent {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+/* Windows flag */
+.flag {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 3px;
+  width: 40px;
+  height: 40px;
+  margin-bottom: 12px;
+  filter: drop-shadow(1px 2px 3px rgba(0,0,0,0.35));
+}
+.flagPetal    { border-radius: 2px; }
+.petalRed     { background: #f35325; }
+.petalGreen   { background: #81bc06; }
+.petalBlue    { background: #05a6f0; }
+.petalYellow  { background: #ffba08; }
+
+/* "welcome" large text */
+.welcomeText {
+  font-size: 52px;
+  font-weight: normal;
+  font-style: italic;
+  color: #fff;
+  line-height: 1;
+  margin: 0;
+  text-shadow:
+    1px 1px 0   rgba(0,0,0,0.3),
+    2px 2px 6px rgba(0,0,0,0.4),
+    0   0   20px rgba(80,140,220,0.3);
+  letter-spacing: -1px;
+  position: relative;
+  display: inline-block;
+}
+
+.welcomeSub {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.9);
+  text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+  margin: 0;
+  line-height: 1.5;
+  max-width: 220px;
+}
+
+/* ── VERTICAL DIVIDER ────────────────────────────────────────────────────── */
+.divider {
+  width: 1px;
+  flex-shrink: 0;
+  align-self: stretch;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(255, 255, 255, 0.5) 15%,
+    rgba(255, 255, 255, 0.5) 85%,
+    transparent 100%
+  );
+  box-shadow: 1px 0 4px rgba(0,0,0,0.2);
+  position: relative;
+  z-index: 5;
+}
+
+/* ── RIGHT PANEL — user list ─────────────────────────────────────────────── */
+.rightPanel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: linear-gradient(180deg,
+    #3a70c8 0%,
+    #2e60bc 30%,
+    #2858b4 70%,
+    #2252aa 100%
+  );
+  overflow: hidden;
+}
+
+.userScroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 0;
+  /* Custom scrollbar styled like XP */
+  scrollbar-width: thin;
+  scrollbar-color: #6090d8 #1a3888;
+}
+.userScroll::-webkit-scrollbar       { width: 16px; }
+.userScroll::-webkit-scrollbar-track { background: #1a3888; border-left: 1px solid #0e2660; }
+.userScroll::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #8ab0e8 0%, #5888cc 50%, #4070b8 100%);
+  border: 1px solid #3060a0;
+  border-radius: 2px;
+}
+.userScroll::-webkit-scrollbar-button {
+  background: linear-gradient(180deg, #5888d0, #3060b0);
+  border: 1px solid #2050a0;
+  height: 16px;
+}
+
+/* ── USER TILE ───────────────────────────────────────────────────────────── */
+.tile {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 6px 20px 6px 16px;
+  cursor: pointer;
+  transition: background 0.1s ease;
+  outline: none;
+  min-height: 72px;
+  border-top: 1px solid transparent;
+  border-bottom: 1px solid transparent;
+}
+.tile:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255,255,255,0.1);
+}
+.activeTile {
+  background: linear-gradient(180deg,
+    rgba(255,255,255,0.22) 0%,
+    rgba(255,255,255,0.12) 100%
+  ) !important;
+  border-color: rgba(255,255,255,0.25) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.3),
+    0 1px 0 rgba(255,255,255,0.1);
+}
+.dimmedTile { opacity: 0.7; }
+.dimmedTile:hover, .dimmedTile.activeTile { opacity: 1; }
+
+/* ── AVATAR ──────────────────────────────────────────────────────────────── */
+.avatarWrap {
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  border-radius: 4px;
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  background: rgba(20, 50, 120, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.2),
+    0 2px 4px rgba(0,0,0,0.4);
+}
+
+.ghostAvatar {
+  border-color: rgba(200, 50, 50, 0.6);
+  animation: ghostPulse 2.5s ease-in-out infinite;
+}
+@keyframes ghostPulse {
+  0%, 100% { filter: none; }
+  50%       { filter: brightness(1.3) hue-rotate(10deg); box-shadow: 0 0 8px rgba(200,50,50,0.4); }
+}
+
+/* ── TILE CONTENT ────────────────────────────────────────────────────────── */
+.tileContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tileName {
+  font-size: 18px;
+  font-weight: bold;
+  color: #fff;
+  text-shadow: 1px 1px 3px rgba(0,0,0,0.7);
+  line-height: 1.2;
+}
+
+.otherName {
+  font-weight: normal;
+  font-style: italic;
+  color: rgba(200, 220, 255, 0.65);
+  font-size: 15px;
+}
+
+.twoFieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+/* ── PASSWORD ROW ────────────────────────────────────────────────────────── */
+.passwordRow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.inputWrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.passwordInput, .textInput {
+  flex: 1;
+  height: 24px;
+  padding: 0 7px;
+  font-size: 12px;
+  font-family: 'Tahoma', sans-serif;
+  background: #fff;
+  border: 1px solid #7a9fc5;
+  border-radius: 2px;
+  color: #000;
+  outline: none;
+  box-shadow: inset 1px 1px 3px rgba(0,0,0,0.2);
+  max-width: 180px;
+}
+.passwordInput:focus, .textInput:focus {
+  border-color: #316ac5;
+  box-shadow: inset 1px 1px 3px rgba(0,0,0,0.2), 0 0 0 2px rgba(49,106,197,0.3);
+}
+
+/* Green arrow button — exact XP style */
+.arrowBtn {
+  width: 28px;
+  height: 24px;
+  flex-shrink: 0;
+  background: linear-gradient(180deg, #60b840 0%, #3a9018 50%, #2e8010 100%);
+  border: 1px solid #1e6008;
+  border-radius: 3px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.35), 0 1px 3px rgba(0,0,0,0.4);
+  transition: filter 0.1s;
+}
+.arrowBtn:hover  { filter: brightness(1.12); }
+.arrowBtn:active { filter: brightness(0.88); }
+
+.errorMsg {
+  font-size: 11px;
+  color: #ffcccc;
+  background: rgba(140, 0, 0, 0.4);
+  border-left: 2px solid #ff4444;
+  padding: 3px 7px;
+  border-radius: 2px;
+  margin: 0;
+  max-width: 220px;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  15%       { transform: translateX(-6px); }
+  30%       { transform: translateX(5px); }
+  45%       { transform: translateX(-4px); }
+  60%       { transform: translateX(3px); }
+  75%       { transform: translateX(-2px); }
+}
+.shake { animation: shake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) both; }
+
+/* ── BOTTOM BAR ──────────────────────────────────────────────────────────── */
+.bottomBar {
+  height: 48px;
+  flex-shrink: 0;
+  background: linear-gradient(180deg, #1e3e88 0%, #162e70 50%, #101e58 100%);
+  border-top: 1px solid #0c1848;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  z-index: 10;
+  position: relative;
+}
+
+.bottomLeft {
+  display: flex;
+  align-items: center;
+}
+
+/* Power button — orange circle like real XP */
+.turnOffBtn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-family: 'Tahoma', sans-serif;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+.turnOffBtn:hover { background: rgba(255,255,255,0.08); }
+
+.powerCircle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%,
+    #ff9a30 0%, #e06010 50%, #c04808 100%
+  );
+  border: 2px solid #a03808;
+  box-shadow:
+    0 0 6px rgba(220, 80, 0, 0.6),
+    inset 0 1px 0 rgba(255,200,100,0.4);
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.turnOffText {
+  font-size: 13px;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.6);
+}
+
+.bottomRight {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.bottomHint {
+  font-size: 11px;
+  color: rgba(200, 220, 255, 0.7);
+}
+.bottomHintLink {
+  text-decoration: underline;
+  cursor: pointer;
+  color: rgba(180, 210, 255, 0.85);
+}
+
+.clock {
+  font-size: 12px;
+  color: rgba(210, 230, 255, 0.85);
+  white-space: nowrap;
+}
+
+/* ── CORRUPTION STATES ───────────────────────────────────────────────────── */
+.corrupted  { animation: screenFlicker 12s infinite; }
+.aggressive { animation: screenFlicker 5s infinite, colorDrift 15s infinite; }
+.maxCorrupt { animation: screenFlicker 3s infinite, redTint 8s infinite; }
+
+@keyframes screenFlicker {
+  0%, 96%, 100% { filter: none; }
+  97%            { filter: brightness(1.4) contrast(1.1); }
+  97.3%          { filter: none; }
+  98.5%          { filter: brightness(0.6) sepia(0.3); }
+  98.7%          { filter: none; }
+}
+@keyframes colorDrift {
+  0%, 100% { filter: none; }
+  25%       { filter: hue-rotate(4deg) saturate(1.1); }
+  50%       { filter: hue-rotate(-5deg) brightness(0.92); }
+  75%       { filter: hue-rotate(2deg); }
+}
+@keyframes redTint {
+  0%, 100% { filter: none; }
+  50%       { filter: sepia(0.15) hue-rotate(-10deg) saturate(1.2); }
+}
+
+/* ── GLITCH TEXT ─────────────────────────────────────────────────────────── */
+.glitchedText {
+  position: relative;
+  display: inline-block;
+  animation: textGlitch 4s infinite;
+}
+.glitchedText::before, .glitchedText::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;
+  pointer-events: none;
+}
+.glitchedText::before {
+  color: #ff4444; clip-path: inset(30% 0 50% 0);
+  transform: translateX(-2px);
+  animation: textGlitch 3s infinite reverse; opacity: 0.7;
+}
+.glitchedText::after {
+  color: #4444ff; clip-path: inset(60% 0 10% 0);
+  transform: translateX(2px);
+  animation: textGlitch 2.5s infinite 0.5s; opacity: 0.5;
+}
+@keyframes textGlitch {
+  0%, 85%, 100% { transform: none; opacity: 1; clip-path: none; }
+  87%            { transform: skewX(3deg) translateX(-3px); clip-path: inset(20% 0 40% 0); }
+  89%            { transform: none; }
+  92%            { transform: skewX(-1deg) translateX(2px); clip-path: inset(55% 0 10% 0); }
+}
+
+.aggressiveText    { color: #ff8888 !important; text-shadow: 0 0 8px rgba(255,50,50,0.6) !important; }
+.aggressiveSubtext { color: rgba(255, 150, 150, 0.65) !important; }
+
+/* ── TRANSITION OVERLAYS ─────────────────────────────────────────────────── */
+.overlay {
+  position: fixed; inset: 0; z-index: 200;
+  display: flex; align-items: center; justify-content: center;
+  animation: fadeIn 0.25s ease-out forwards;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.normalOverlay { background: #000; }
+.loadingText   { font-size: 14px; color: rgba(255,255,255,0.5); font-family: 'Tahoma', sans-serif; }
+
+.secretOverlay {
+  background: #000;
+  animation: fadeIn 0.25s ease-out, secretPulse 3s ease-out;
+}
+@keyframes secretPulse {
+  0%  { background: #000; } 10% { background: #1a0000; }
+  20% { background: #000; } 35% { background: #200000; }
+  50% { background: #000; } 100%{ background: #000; }
+}
+
+.secretContent {
+  text-align: center;
+  font-family: 'Courier New', monospace;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.secretLine1 {
+  font-size: 16px; letter-spacing: 5px; color: #ff2222;
+  overflow: hidden; white-space: nowrap;
+  border-right: 2px solid #ff2222; width: 0;
+  animation: typeIn 1s steps(22) 0.2s forwards;
+}
+.secretLine2 { font-size: 12px; color: rgba(255,80,80,0.6); opacity: 0; animation: appear 0.3s ease-out 1.3s forwards; letter-spacing: 2px; }
+.secretLine3 { font-size: 11px; color: rgba(255,80,80,0.4); opacity: 0; animation: appear 0.3s ease-out 1.8s forwards; }
+@keyframes typeIn { from { width: 0; } to { width: 100%; border-right-color: transparent; } }
+@keyframes appear { to { opacity: 1; } }
+
+/* ── CRT shutdown animation ──────────────────────────────────────────────── */
+
+/*
+  Mimics a CRT monitor being switched off:
+  1. Screen briefly gets brighter (phosphor flash)
+  2. Collapses vertically to a thin horizontal line
+  3. Line shrinks to a dot at centre
+  4. Fades to black
+*/
+
+/* ── "Safe to close" fallback screen ─────────────────────────────────────── */
+.safeToClose {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 2.5s ease-in forwards;
+}
+
+.safeText {
+  font-family: 'Tahoma', 'Verdana', sans-serif;
+  font-size: 25px;
+  color: rgba(255, 255, 255, 0.75);
+  text-align: center;
+  letter-spacing: 0.3px;
+}
+
+.crtCursor {
+  display: inline-block;
+  color: rgba(255, 255, 255, 0.75);
+  animation: cursorBlink 0.6s step-end infinite;
+  margin-left: 2px;
+}
+
+@keyframes cursorBlink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+/* ── Name prompt (first-visit XP setup dialog) ───────────────────────────── */
+.namePromptBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+.namePromptDialog {
+  width: 420px;
+  background: #ece9d8;
+  border: 3px solid #0055e5;
+  border-radius: 8px 8px 4px 4px;
+  box-shadow: 4px 4px 16px rgba(0,0,0,0.6);
+  overflow: hidden;
+  font-family: 'Tahoma', 'Verdana', sans-serif;
+}
+
+/* XP title bar */
+.namePromptTitle {
+  height: 30px;
+  background: linear-gradient(180deg,
+    #4d8fea 0%, #2165c8 8%, #1b55c0 42%,
+    #1248b0 50%, #1555bc 58%, #1e70d4 90%, #2878d8 100%
+  );
+  color: #fff;
+  font-size: 12px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+}
+
+.namePromptIcon { font-size: 14px; }
+
+.namePromptBody {
+  padding: 24px 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  /* XP dialog blue stripe on the left */
+  border-left: 4px solid #316ac5;
+  margin-left: 4px;
+}
+
+.namePromptLabel {
+  font-size: 12px;
+  color: #000;
+  margin: 0;
+  line-height: 1.6;
+}
+
+.namePromptRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.namePromptFieldLabel {
+  font-size: 12px;
+  color: #000;
+  white-space: nowrap;
+  font-weight: bold;
+}
+
+.namePromptInput {
+  flex: 1;
+  height: 24px;
+  padding: 0 6px;
+  font-size: 12px;
+  font-family: 'Tahoma', sans-serif;
+  border: 1px solid #7a9fc5;
+  border-radius: 2px;
+  background: #fff;
+  color: #000;
+  outline: none;
+  box-shadow: inset 1px 1px 3px rgba(0,0,0,0.15);
+}
+.namePromptInput:focus {
+  border-color: #316ac5;
+  box-shadow: inset 1px 1px 3px rgba(0,0,0,0.15), 0 0 0 2px rgba(49,106,197,0.3);
+}
+
+.namePromptBtns {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.namePromptNext {
+  height: 26px;
+  padding: 0 20px;
+  background: linear-gradient(180deg, #f5f4f0 0%, #e0ddd4 100%);
+  border: 1px solid #7a7775;
+  border-radius: 3px;
+  font-family: 'Tahoma', sans-serif;
+  font-size: 12px;
+  cursor: pointer;
+  color: #000;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.8), 0 1px 2px rgba(0,0,0,0.2);
+}
+.namePromptNext:hover  { background: linear-gradient(180deg, #e8f0fc 0%, #ccdaf8 100%); border-color: #316ac5; }
+.namePromptNext:active { background: linear-gradient(180deg, #ccdaf8 0%, #e0ecfc 100%); }
