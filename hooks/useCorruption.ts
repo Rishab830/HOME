@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 
 declare global {
   interface Window {
-    resetCorruption: () => void;
+    resetCorruption?: () => void;
   }
 }
 
