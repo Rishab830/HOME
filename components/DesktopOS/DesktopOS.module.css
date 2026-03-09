@@ -3,6 +3,19 @@
   display: flex; flex-direction: column;
   overflow: hidden; position: relative;
   font-family: 'Tahoma', 'Verdana', sans-serif;
+  cursor: url('/cursors/windows_xp_pointer.png') 0 0, default;
+}
+
+.os button,
+.os a,
+.os input,
+.os select,
+.os textarea,
+.os label,
+.os [role="button"],
+.os [role="menuitem"],
+.os [tabindex="0"] {
+  cursor: url('/cursors/windows_xp_clicker.png') 0 0, pointer;
 }
 
 /* Screen-wide glitch — applied via JS class swap at high corruption */
@@ -46,6 +59,7 @@
 .corruptedCursor { cursor: none !important; }
 .corruptedCursor * { cursor: none !important; }
 
+/* ADD to DesktopOS.module.css */
 .safeToClose {
   position: fixed;
   inset: 0;
@@ -55,6 +69,7 @@
   align-items: center;
   justify-content: center;
   animation: fadeIn 2.5s ease-in forwards;
+  cursor: none;
 }
 
 .safeText {
@@ -75,4 +90,9 @@
 @keyframes cursorBlink {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }

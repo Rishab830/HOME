@@ -8,7 +8,9 @@ interface Props {
   initialPath:       string[];
   corruptionLevel:   number;
   onOpenFile:        (file: FSFile) => void;
-  incrementCorruption: (n: number) => void;
+  triggerOnce:       (key: string, gain: number) => void; 
+  deletedFiles:    Set<string>;
+  unlockedFiles: Set<string>;
 }
 
 function getNodeAtPath(path: string[]): FSFolder | null {
@@ -21,10 +23,6 @@ function getNodeAtPath(path: string[]): FSFolder | null {
   return current;
 }
 
-function filterVisible(nodes: FSNode[], corruption: number): FSNode[] {
-  return nodes.filter(n => !n.hiddenThreshold || corruption >= n.hiddenThreshold);
-}
-
 function nodeIcon(node: FSNode): string {
   if (node.type === 'folder') return '📁';
   if (node.type === 'txt')    return '📄';
@@ -35,14 +33,22 @@ function nodeIcon(node: FSNode): string {
 }
 
 export default function FileExplorer({
-  initialPath, corruptionLevel, onOpenFile, incrementCorruption,
+  initialPath, corruptionLevel, onOpenFile, triggerOnce, deletedFiles, unlockedFiles
 }: Props) {
   const [path, setPath] = useState<string[]>(initialPath);
   const [history, setHistory] = useState<string[][]>([initialPath]);
   const [histIdx, setHistIdx] = useState(0);
 
   const folder = getNodeAtPath(path);
-  const visible = folder ? filterVisible(folder.children, corruptionLevel) : [];
+  const visible = folder
+  ? folder.children
+      .filter(node =>
+        !node.hiddenThreshold ||
+        corruptionLevel >= node.hiddenThreshold ||
+        unlockedFiles.has(node.name)            // ← unlocked overrides hiddenThreshold
+      )
+      .filter(node => !deletedFiles.has(node.name))
+  : [];
 
   const navigate = (newPath: string[]) => {
     const trimmed = history.slice(0, histIdx + 1);
@@ -58,7 +64,12 @@ export default function FileExplorer({
   };
 
   const handleNodeDoubleClick = (node: FSNode) => {
-    if (node.corruptionGain) incrementCorruption(node.corruptionGain);
+    if (node.corruptionGain) {
+      const key = node.type === 'folder'
+        ? `folder:${node.name}`
+        : `file:${node.name}`;
+      triggerOnce(key, node.corruptionGain);
+    }
 
     if (node.type === 'folder') {
       if (node.lockedThreshold && corruptionLevel < node.lockedThreshold) {

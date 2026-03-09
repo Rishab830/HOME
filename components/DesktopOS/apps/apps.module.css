@@ -39,7 +39,7 @@
 }
 .toolBtn {
   padding: 2px 8px; font-size: 11px; font-family: 'Tahoma', sans-serif;
-  background: #ece9d8; border: 1px solid #aaa8a0; border-radius: 2px; cursor: pointer;
+  background: #ece9d8; border: 1px solid #aaa8a0; border-radius: 2px; cursor: pointer; color: #000;
 }
 .toolBtn:disabled { color: #aaa; cursor: default; }
 .addressBar {
@@ -135,3 +135,311 @@
 }
 .xpBtn:hover  { background: linear-gradient(180deg, #e8f0fc 0%, #ccdaf8 100%); border-color: #316ac5; }
 .xpBtn:active { background: linear-gradient(180deg, #ccdaf8 0%, #e0ecfc 100%); }
+
+.imageViewerWrap {
+  display:        flex;
+  flex-direction: column;
+  height:         100%;
+  background:     #f0ede6;
+  font-family:    'Tahoma', sans-serif;
+}
+
+.imageViewerToolbar {
+  display:     flex;
+  align-items: center;
+  gap:         4px;
+  padding:     4px 6px;
+  background:  linear-gradient(180deg, #f5f4f0 0%, #e0ddd4 100%);
+  border-bottom: 1px solid #aca899;
+}
+
+.imageViewerBtn {
+  height:      24px;
+  padding:     0 8px;
+  background:  linear-gradient(180deg, #f5f4f0 0%, #dddad2 100%);
+  border:      1px solid #aca899;
+  border-radius: 2px;
+  font-size:   12px;
+  cursor:      pointer;
+}
+.imageViewerBtn:hover { background: linear-gradient(180deg, #e8f0fc 0%, #ccdaf8 100%); border-color: #316ac5; }
+
+.imageViewerName {
+  margin-left: 8px;
+  font-size:   11px;
+  color:       #444;
+}
+
+.imageViewerCanvas {
+  flex:            1;
+  overflow:        hidden;        /* no scrollbars */
+  display:         flex;
+  align-items:     stretch;       /* fill vertically */
+  justify-content: stretch;       /* fill horizontally */
+  background:      #6d8fad;
+  min-height:      0;             /* critical — lets flex child shrink below content size */
+}
+
+.imageViewerImg {
+  width:      100%;
+  height:     100%;
+  object-fit: contain;            /* keeps aspect ratio, no crop */
+  display:    block;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+
+/* ── MINESWEEPER ─────────────────────────────────────────────────────────── */
+
+/* Outer shell — matches XP window body bg */
+.mswWrap {
+  display:        flex;
+  flex-direction: column;
+  background:     #c0c0c0;
+  height:         100%;
+  box-sizing:     border-box;
+  overflow:       hidden;
+  font-family:    'Tahoma', 'MS Sans Serif', sans-serif;
+}
+
+/* ── Menu bar ──────────────────────────────────────────────────────────── */
+.mswMenuBar {
+  display:       flex;
+  background:    #c0c0c0;
+  padding:       1px 2px 0;
+  border-bottom: 1px solid #808080;
+}
+
+.mswMenuItem {
+  background:    transparent;
+  border:        1px solid transparent;
+  padding:       2px 8px;
+  font-family:   'Tahoma', sans-serif;
+  font-size:     11px;
+  cursor:        default;
+  color:         #000;
+}
+.mswMenuItem:hover {
+  background:   #000080;
+  color:        #fff;
+  border-color: transparent;
+}
+
+/* ── Inner raised panel ────────────────────────────────────────────────── */
+.mswInner {
+  display:        flex;
+  flex-direction: column;
+  align-items:    center;
+  gap:            8px;
+  padding:        8px;
+  margin:         6px;
+  background:     #c0c0c0;
+  border:         3px solid;
+  border-color:   #ffffff #808080 #808080 #ffffff;
+}
+
+/* ── Header strip ──────────────────────────────────────────────────────── */
+.mswHeader {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  width:           100%;
+  padding:         4px 6px;
+  box-sizing:      border-box;
+  background:      #c0c0c0;
+  border:          2px solid;
+  border-color:    #808080 #ffffff #ffffff #808080;
+}
+
+/* ── LCD counter ───────────────────────────────────────────────────────── */
+.mswLcd {
+  position:    relative;
+  background:  #000;
+  width:       52px;
+  height:      30px;
+  display:     flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 3px;
+  border:      2px solid;
+  border-color: #808080 #ffffff #ffffff #808080;
+  overflow:    hidden;
+  flex-shrink: 0;
+}
+
+/* Ghost "888" — simulates unlit LCD segments */
+.mswLcdGhost {
+  position:       absolute;
+  right:          3px;
+  color:          #5a0000;
+  font-family:    'Courier New', monospace;
+  font-size:      22px;
+  font-weight:    bold;
+  letter-spacing: 2px;
+  line-height:    1;
+  user-select:    none;
+}
+
+/* Lit digits */
+.mswLcdVal {
+  position:       relative;
+  z-index:        1;
+  color:          #ff0000;
+  font-family:    'Courier New', monospace;
+  font-size:      22px;
+  font-weight:    bold;
+  letter-spacing: 2px;
+  line-height:    1;
+  user-select:    none;
+}
+
+/* ── Smiley reset button ────────────────────────────────────────────────── */
+.mswFace {
+  font-size:   18px;
+  width:       36px;
+  height:      36px;
+  background:  #c0c0c0;
+  border:      3px solid;
+  border-color: #ffffff #808080 #808080 #ffffff;
+  cursor:      pointer;
+  display:     flex;
+  align-items: center;
+  justify-content: center;
+  padding:     0;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.mswFace:active {
+  border-color: #808080 #ffffff #ffffff #808080;
+  padding-top:  2px;
+  padding-left: 2px;
+}
+
+/* ── Grid container ─────────────────────────────────────────────────────── */
+.mswGrid {
+  display:     grid;
+  grid-template-columns: repeat(9, 24px);
+  border:      3px solid;
+  border-color: #808080 #ffffff #ffffff #808080;
+  line-height: 0;
+}
+
+/* ── Cell — unrevealed (raised 3D button) ───────────────────────────────── */
+.mswCell {
+  width:       24px;
+  height:      24px;
+  background:  #c0c0c0;
+  border:      2px solid;
+  border-color: #ffffff #808080 #808080 #ffffff;
+  font-size:   12px;
+  font-weight: bold;
+  font-family: 'Tahoma', sans-serif;
+  cursor:      default;
+  padding:     0;
+  line-height: 1;
+  display:     flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing:  border-box;
+  user-select: none;
+}
+.mswCell:active:not(.mswCellOpen) {
+  border-color: #808080 #ffffff #ffffff #808080;
+  padding-top:  2px;
+  padding-left: 2px;
+}
+
+/* ── Cell — revealed (flat, slightly inset) ─────────────────────────────── */
+.mswCellOpen {
+  border:     1px solid #808080;
+  cursor:     default;
+}
+
+/* ── Mine cell — red highlight on death ─────────────────────────────────── */
+.mswMine {
+  background: #ff0000;
+}
+
+/* ── Status bar ─────────────────────────────────────────────────────────── */
+.mswStatus {
+  font-family: 'Tahoma', sans-serif;
+  font-size:   11px;
+  color:       #000;
+  min-height:  14px;
+  text-align:  center;
+  width:       100%;
+}
+
+/* ── SNAKE ───────────────────────────────────────────────────────────────── */
+.snakeWrap {
+  display:        flex;
+  flex-direction: column;
+  background:     #c0c0c0;
+  height:         100%;
+  box-sizing:     border-box;
+  overflow:       hidden;
+  font-family:    'Tahoma', sans-serif;
+}
+
+.snakeInner {
+  display:        flex;
+  flex-direction: column;
+  align-items:    center;
+  gap:            6px;
+  padding:        8px;
+  margin:         6px;
+  background:     #c0c0c0;
+  border:         3px solid;
+  border-color:   #ffffff #808080 #808080 #ffffff;
+}
+
+.snakeScoreBar {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  width:           100%;
+  padding:         4px 6px;
+  box-sizing:      border-box;
+  background:      #c0c0c0;
+  border:          2px solid;
+  border-color:    #808080 #ffffff #ffffff #808080;
+}
+
+.snakeScoreBox {
+  display:        flex;
+  flex-direction: column;
+  align-items:    center;
+  background:     #000;
+  border:         2px solid;
+  border-color:   #808080 #ffffff #ffffff #808080;
+  padding:        2px 8px;
+  min-width:      56px;
+}
+
+.snakeScoreLabel {
+  font-size:   9px;
+  color:       #888;
+  font-family: 'Tahoma', sans-serif;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.snakeScoreVal {
+  color:          #ff0000;
+  font-family:    'Courier New', monospace;
+  font-size:      20px;
+  font-weight:    bold;
+  letter-spacing: 2px;
+  line-height:    1.1;
+}
+
+.snakeRecord {
+  color: #ffcc00;   /* gold when setting a new record */
+}
+
+.snakeCanvas {
+  border:      3px solid;
+  border-color: #808080 #ffffff #ffffff #808080;
+  display:     block;
+  cursor:      default;
+}
+

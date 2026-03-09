@@ -2,13 +2,14 @@
 import { useState, useCallback } from 'react';
 import LoginScreen from '@/components/LoginScreen';
 import DesktopOS from '@/components/DesktopOS';         // your next component
-import ShutdownOverlay from '@/components/ShutdownOverlay';
+import LogoffOverlay from '@/components/LogoffOverlay';   // ← ADD
 
 type Scene = 'login' | 'desktop' | 'secret';
 
 export default function Page() {
   const [scene, setScene] = useState<Scene>('login');
   const [isShuttingDown, setShuttingDown] = useState(false);
+  const [isLoggingOff,   setLoggingOff]   = useState(false);  // ← ADD
 
   const handleShutdown = useCallback(() => {         // ← ADD
     setShuttingDown(true);
@@ -19,24 +20,33 @@ export default function Page() {
     setScene('login');
   }, []);
 
+  const handleLogoff = useCallback(() => {
+    setLoggingOff(true);
+  }, []);
+
+  // ← ADD
+  const handleLogoffComplete = useCallback(() => {
+    setLoggingOff(false);
+    setScene('login');
+  }, []);
+
   return (
     <>
-      {scene === 'login'   && (
+      {scene === 'login' && (
         <LoginScreen
           onLogin={isSecret => setScene(isSecret ? 'secret' : 'desktop')}
-          onTurnOff={handleShutdown}   // ← was previously doing nothing
+          onTurnOff={handleShutdown}
         />
       )}
-      {scene === 'desktop' && (
+      {scene === 'desktop' && !isLoggingOff && (
         <DesktopOS
-          onLogout={handleShutdown}    // ← was setScene('login') directly, now goes through overlay
-          onTurnOff={handleShutdown}   // ← ADD this new prop
+          onLogout={handleLogoff}
+          onTurnOff={handleShutdown}
         />
       )}
-      {/* Overlay renders above everything — triggered from any scene */}
-      {isShuttingDown && (             // ← ADD
-        <ShutdownOverlay onComplete={handleShutdownComplete} />
-      )}
+
+      {/* Overlays render above everything */}
+      {isLoggingOff   && <LogoffOverlay onComplete={handleLogoffComplete} />}  {/* ← ADD */}
     </>
   );
 }

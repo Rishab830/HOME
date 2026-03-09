@@ -39,6 +39,7 @@ export default function Taskbar({
       <button
         className={`${styles.startBtn} ${isStartOpen ? styles.startActive : ''}`}
         onClick={onStartClick}
+        data-possession="start"       // ← ADD
         aria-label="Start"
       >
         <span className={styles.startFlag} aria-hidden>

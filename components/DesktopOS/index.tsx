@@ -1,7 +1,7 @@
 'use client';
 
 import {
-  useState, useEffect, useCallback, useRef, useId,
+  useState, useEffect, useCallback, useRef,
 } from 'react';
 
 import styles          from './DesktopOS.module.css';
@@ -14,17 +14,67 @@ import ErrorDialog     from './apps/ErrorDialog';
 
 import { useCorruption }    from '@/hooks/useCorruption';
 import { useHorrorEvents }  from './horror/useHorrorEvents';
-import { FILESYSTEM, FSFile, FSFolder } from './horror/filesystem';
+import { FILESYSTEM, FSFile, FSFolder, type CorruptionAppend } from './horror/filesystem';
+import { useCorruptedCursor } from '@/hooks/useCorruptedCursor';
 import StartMenu from './StartMenu';
+import ImageViewer from './apps/ImageViewer';
+import Minesweeper from './apps/Minesweeper';
+import Snake from './apps/Snake';
 
 const ORIGINAL_TEXT = 'It is now safe to close this window.';
-const MUTATED_TEXT  = 'Is it now safe to close this window?';
-const ERASE_SPEED   = 100;    // ms per character erased
+const PAUSE_BEFORE  = 6000;
+const MOVE_SPEED    = 100;    // ms per cursor step while travelling
 const TYPE_SPEED    = 100;    // ms per character typed
-const PAUSE_BEFORE  = 6000;  // ms of silence before mutation begins
+const DELETE_SPEED  = 100;    // ms per character deleted
+const JUMPSCARE_DURATION = 1000;
+
+type ScriptOp =
+  | { op: 'pause';         ms: number }
+  | { op: 'showCursor'                }
+  | { op: 'removeCursor'              }
+  | { op: 'backspace'                 }   // delete char BEFORE cursor
+  | { op: 'deleteForward'             }   // delete char AT cursor
+  | { op: 'type';          char: string }
+  | { op: 'moveCursor';    delta: -1 | 1 };
+
+// Defined outside the component — it's a pure constant
+const SAFE_SCRIPT: ScriptOp[] = [
+  { op: 'pause',      ms: PAUSE_BEFORE },
+  { op: 'showCursor'                   },
+  { op: 'pause',      ms: 400          },
+
+  // ── 1. Replace '.' with '?' ───────────────────────────────────────
+  { op: 'backspace'                    },   // remove '.'
+  { op: 'type',       char: '?'        },   // add '?'
+  { op: 'pause',      ms: 700          },
+
+  // ── 2. Travel cursor left to position 0 ──────────────────────────
+  // "It is now safe to close this window?" = 36 chars, cursor at 36
+  ...Array.from({ length: 36 }, (): ScriptOp => ({ op: 'moveCursor', delta: -1 })),
+  { op: 'pause',      ms: 350          },
+
+  // ── 3. Delete 'It ' (3 chars forward) ────────────────────────────
+  { op: 'deleteForward'                },   // 'I' → 't is now...'
+  { op: 'deleteForward'                },   // 't' → ' is now...'
+  { op: 'deleteForward'                },   // ' ' → 'is now...'
+
+  // ── 4. Capitalise 'i' of 'is' ────────────────────────────────────
+  { op: 'deleteForward'                },   // 'i' → 's now...'
+  { op: 'type',       char: 'I'        },   // → 'Is now...'   cursor at 1
+
+  // ── 5. Move cursor to position 3 (after 'Is ') ───────────────────
+  { op: 'moveCursor', delta: 1         },   // cursor → 2 (after 's')
+  { op: 'moveCursor', delta: 1         },   // cursor → 3 (after ' ')
+
+  // ── 6. Type 'it ' — shifts 'now...' right ────────────────────────
+  { op: 'type',       char: 'i'        },   // 'Is inow...'
+  { op: 'type',       char: 't'        },   // 'Is itnow...'
+  { op: 'type',       char: ' '        },
+  { op: 'removeCursor'                   },
+];
 
 // ─── Types ───────────────────────────────────────────────────────────────────
-type AppType = 'notepad' | 'explorer' | 'error';
+type AppType = 'notepad' | 'explorer' | 'error' | 'image' | 'minesweeper' | 'snake';
 
 interface OpenWindow {
   id:         string;
@@ -32,6 +82,9 @@ interface OpenWindow {
   appType:    AppType;
   appProps:   Record<string, unknown>;
   minimized:  boolean;
+  maximized:     boolean;        // ← ADD
+  closeAttempts: number;         // ← ADD
+  forceFullscreen: boolean;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -49,58 +102,6 @@ function findFileInFS(name: string, folder: FSFolder): FSFile | null {
   return null;
 }
 
-// ─── Cursor lag hook (corruption effect) ─────────────────────────────────────
-function useCorruptedCursor(active: boolean, corruption: number) {
-  const dotRef = useRef<HTMLDivElement | null>(null);
-  const pos    = useRef({ x: 0, y: 0 });
-
-  useEffect(() => {
-    if (!active) { dotRef.current?.remove(); dotRef.current = null; return; }
-
-    // Inject a custom cursor dot that lags behind the real cursor
-    const dot = document.createElement('div');
-    Object.assign(dot.style, {
-      position:       'fixed',
-      width:          '12px',
-      height:         '12px',
-      borderRadius:   '50%',
-      background:     corruption >= 80 ? '#ff0000' : '#ffffff',
-      pointerEvents:  'none',
-      zIndex:         '99999',
-      transform:      'translate(-50%, -50%)',
-      mixBlendMode:   'difference',
-      transition:     'background 1s',
-    });
-    document.body.appendChild(dot);
-    dotRef.current = dot;
-
-    const onMove = (e: MouseEvent) => {
-      pos.current = { x: e.clientX, y: e.clientY };
-    };
-    document.addEventListener('mousemove', onMove);
-
-    // Lerp the dot toward the real cursor — lag worsens with corruption
-    let raf: number;
-    let vx = 0, vy = 0;
-    const lerp = () => {
-      const speed = Math.max(0.05, 0.35 - (corruption / 100) * 0.28);
-      vx += (pos.current.x - vx) * speed;
-      vy += (pos.current.y - vy) * speed;
-      dot.style.left = `${vx}px`;
-      dot.style.top  = `${vy}px`;
-      raf = requestAnimationFrame(lerp);
-    };
-    lerp();
-
-    return () => {
-      document.removeEventListener('mousemove', onMove);
-      cancelAnimationFrame(raf);
-      dot.remove();
-      dotRef.current = null;
-    };
-  }, [active, corruption]);
-}
-
 // ─── Component ───────────────────────────────────────────────────────────────
 interface Props {
   onLogout: () => void;
@@ -108,7 +109,7 @@ interface Props {
 }
 
 export default function DesktopOS({ onLogout, onTurnOff }: Props) {
-  const { corruptionLevel, incrementCorruption } = useCorruption();
+  const { corruptionLevel, incrementCorruption, triggerOnce } = useCorruption();
 
   const [windows, setWindows]             = useState<OpenWindow[]>([]);
   const [activeId, setActiveId]           = useState<string | null>(null);
@@ -117,11 +118,140 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
   const [isShuttingDown, setIsShuttingDown] = useState(false);
   const [safeToClose, setSafeToClose]       = useState(false);
   const [safeText, setSafeText]             = useState(ORIGINAL_TEXT);                          // ← ADD
-  const [safePhase, setSafePhase]           = useState<'idle'|'erasing'|'typing'>('idle');      // ← ADD
+  const [safeCursorPos, setSafeCursorPos] = useState(ORIGINAL_TEXT.length);
+  const [safeCursorVis, setSafeCursorVis] = useState(false);
+  const [gifCursorSrc, setGifCursorSrc] = useState<string | null>(null);
+  const [crashBlocked,    setCrashBlocked]    = useState(false);
+  const [showCrashScare,  setShowCrashScare]  = useState(false);
+  const crashAudioRef = useRef<HTMLAudioElement | null>(null);
+  const [possessed,     setPossessed]     = useState(false);
+  const [gravityTarget, setGravityTarget] = useState<{ x: number; y: number } | null>(null);
+  const [gravitySpeed,  setGravitySpeed]  = useState(0);
+  const possessionPhase = useRef<'idle' | 'toStart' | 'toLogoff'>('idle');
+  const sessionStart    = useRef(Date.now());
+  const speedTimer      = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const [deletedFiles, setDeletedFiles] = useState<Set<string>>(() => {
+    if (typeof window === 'undefined') return new Set();
+    try {
+      return new Set(JSON.parse(localStorage.getItem('xp_deleted') ?? '[]'));
+    } catch { return new Set(); }
+  });
+  
+  const [unlockedFiles, setUnlockedFiles] = useState<Set<string>>(() => {
+    if (typeof window === 'undefined') return new Set();
+    try { return new Set(JSON.parse(localStorage.getItem('xp_unlocked') ?? '[]')); }
+    catch { return new Set(); }
+  });
+
+  const handleSnakeCrash = useCallback(() => {
+    setCrashBlocked(true);
+    incrementCorruption(12);
+
+    // Play breath.mpeg once in full
+    const breath = new Audio('/sounds/breath.mpeg');
+    breath.volume = 0.8;
+    crashAudioRef.current = breath;
+
+    breath.play().catch(() => {});
+
+    // When breath finishes, wait 10s then jumpscare + glass
+    breath.addEventListener('ended', () => {
+      setTimeout(() => {
+        // Play glass.mpeg
+        const glass = new Audio('/sounds/glass.mpeg');
+        glass.volume = 1.0;
+        glass.play().catch(() => {});
+
+        // Show jumpscare simultaneously
+        setShowCrashScare(true);
+        setTimeout(() => {
+          setShowCrashScare(false);
+          setCrashBlocked(false);
+          crashAudioRef.current = null;
+        }, JUMPSCARE_DURATION);
+      }, 10_000);
+    }, { once: true });   // once:true auto-removes the listener after firing
+  }, [incrementCorruption]);
+
+  useEffect(() => {
+    return () => {
+      if (crashAudioRef.current) {
+        crashAudioRef.current.pause();
+        crashAudioRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      const elapsed = (Date.now() - sessionStart.current) / 1000;
+      if (elapsed < 120 || possessionPhase.current !== 'idle') return;
+
+      // 2 minutes elapsed — begin possession
+      const startBtn = document.querySelector<HTMLElement>('[data-possession="start"]');
+      if (!startBtn) return;
+
+      possessionPhase.current = 'toStart';
+      setPossessed(true);
+      const r = startBtn.getBoundingClientRect();
+      setGravityTarget({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+      setGravitySpeed(0.008);
+
+      // Speed ramp — gets faster every 10s
+      speedTimer.current = setInterval(() => {
+        setGravitySpeed(s => Math.min(0.55, s + 0.022));
+      }, 10_000);
+    }, 1000);
+
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => () => {
+    if (speedTimer.current) clearInterval(speedTimer.current);
+  }, []);
+
+  const handlePossessionReach = useCallback(() => {
+    if (possessionPhase.current === 'toStart') {
+      // Arrived at start button — open menu
+      possessionPhase.current = 'toLogoff';
+      setGravitySpeed(0.25);    // fast for second leg
+      setShowStartMenu(true);
+
+      // Wait one frame for StartMenu to mount, then target logoff
+      setTimeout(() => {
+        const logoffBtn = document.querySelector<HTMLElement>('[data-possession="logoff"]');
+        if (!logoffBtn) return;
+        const r = logoffBtn.getBoundingClientRect();
+        setGravityTarget({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+      }, 300);
+      return;
+    }
+
+    if (possessionPhase.current === 'toLogoff') {
+      // Arrived at logoff — clean up and log out
+      possessionPhase.current = 'idle';
+      if (speedTimer.current) clearInterval(speedTimer.current);
+      setGravityTarget(null);
+      setGravitySpeed(0);
+      setPossessed(false);
+      setShowStartMenu(false);
+      setTimeout(() => onLogout(), 400);   // brief pause before transition
+    }
+  }, [onLogout]);
 
   // Cursor lag kicks in at corruption >= 52
-  const cursorActive = corruptionLevel >= 52;
-  useCorruptedCursor(cursorActive, corruptionLevel);
+  const cursorActive = corruptionLevel >= 0 ;
+  useCorruptedCursor({
+    active:        cursorActive,
+    corruption:    corruptionLevel,
+    onGifStart:    useCallback((src: string) => setGifCursorSrc(src), []),
+    onGifEnd:      useCallback(() => setGifCursorSrc(null),           []),
+    gravityTarget,                   // ← ADD
+    gravitySpeed,                    // ← ADD
+    forceShow:     possessed,        // ← ADD — show cursor even below corruption 52
+    onReachTarget: handlePossessionReach,  // ← ADD
+  });
 
   // ── Window management helpers ───────────────────────────────────────
   const openWindow = useCallback((
@@ -145,6 +275,9 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
       appType,
       appProps,
       minimized: false,
+      maximized:     false,      // ← ADD
+      closeAttempts: 0,          // ← ADD
+      forceFullscreen: false,
     };
     setWindows(prev => [...prev, newWindow]);
     setActiveId(id);
@@ -161,6 +294,42 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
     ));
     setActiveId(prev => prev === id ? null : prev);
   }, []);
+
+  const maximizeWindow = useCallback((id: string) => {
+    setWindows(prev => prev.map(w =>
+      w.id === id ? { ...w, maximized: !w.maximized, minimized: false } : w
+    ));
+    setActiveId(id);
+  }, []);
+
+  const handleCloseWindow = useCallback((id: string) => {
+    const win = windows.find(w => w.id === id);
+    if (!win) return;
+
+    // Special behaviour for beach_007.jpg
+    if (win.appProps.filename === 'beach_007.jpg' || win.appProps.src?.toString().includes('beach_007')) {
+      if (win.closeAttempts === 0) {
+        setWindows(prev => prev.map(w =>
+          w.id === id
+            ? { ...w, forceFullscreen: true, minimized: false, closeAttempts: 1 }
+            : w
+        ));
+        setActiveId(id);
+        return;
+      }
+
+      // Second close → delete file and close
+      setDeletedFiles(prev => {
+        const next = new Set(prev).add('beach_007.jpg');
+        localStorage.setItem('xp_deleted', JSON.stringify([...next]));
+        return next;
+      });
+      closeWindow(id);
+      return;
+    }
+
+    closeWindow(id);
+  }, [windows, closeWindow]);
 
   const focusWindow = useCallback((id: string) => {
     setWindows(prev => {
@@ -188,45 +357,32 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
 
   // ── Open a file from the filesystem ────────────────────────────────
   const handleOpenFile = useCallback((file: FSFile) => {
-    if (file.corruptionGain) incrementCorruption(file.corruptionGain);
+    if (file.corruptionGain) triggerOnce(`file:${file.name}`, file.corruptionGain);
 
     if (file.type === 'img') {
-      openWindow('error', {
+      openWindow('image', {
         title:       `${file.name} - Windows Picture and Fax Viewer`,
         iconEmoji:   '🖼️',
-        initialSize: { width: 400, height: 200 },
+        initialSize: { width: 640, height: 500 },
       }, {
-        message:   corruptionLevel >= 50
-          ? 'This image cannot be displayed.\n\nThe file may be corrupted or\ncontain content that cannot be rendered.'
-          : 'Windows cannot open this image.\n\nThe file format is not supported.',
-        isEntity: false,
+        src:      file.baseContent,   // the /gallery/... path you set in filesystem.ts
+        filename: file.name,
       });
       return;
     }
 
-    const handleStartMenuApp = useCallback((action: string) => {
-      if (action.startsWith('_error:')) {
-        const message = action.replace('_error:', '');
-        openWindow('error', {
-          title:     'System Error',
-          iconEmoji: '⚠️',
-          initialSize:     { width: 380, height: 200 },
-          initialPosition: { x: 300, y: 200 },
-        }, { message });
-        return;
-      }
-      handleOpenApp(action);
-    }, [handleOpenApp, openWindow]);
-
+    const instanceId = makeId();     // ← rename for clarity
     openWindow('notepad', {
-      title:     `${file.name} - Notepad`,
-      iconEmoji: '📄',
+      title:       `${file.name} - Notepad`,
+      iconEmoji:   '📄',
       initialSize: { width: 520, height: 380 },
     }, {
-      filename:   file.name,
-      getContent: file.getContent,
+      filename:          file.name,
+      instanceId,
+      baseContent:       file.baseContent,
+      corruptionAppends: file.corruptionAppends ?? [],
     });
-  }, [corruptionLevel, incrementCorruption, openWindow]);
+  }, [corruptionLevel, incrementCorruption, openWindow]);  // ← ADD THIS LINE
 
   // ── Desktop icon / action routing ───────────────────────────────────
   const handleOpenApp = useCallback((action: string) => {
@@ -242,10 +398,18 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
       return;
     }
 
-    if (action.startsWith('notepad:')) {
-      const filename = action.replace('notepad:', '');
-      const file = findFileInFS(filename, FILESYSTEM);
-      if (file) handleOpenFile(file);
+    if (action === 'notepad:new') {
+      const id = makeId();
+      openWindow('notepad', {
+        title:       'Untitled - Notepad',
+        iconEmoji:   '📄',
+        initialSize: { width: 520, height: 380 },
+      }, {
+        filename:          'Untitled',
+        instanceId:        id,
+        baseContent:       '',
+        corruptionAppends: [],
+      });
       return;
     }
 
@@ -253,7 +417,7 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
       openWindow('error', {
         title:     'Internet Explorer',
         iconEmoji: '🌐',
-        initialSize: { width: 420, height: 180 },
+        initialSize: { width: 420, height: 280 },
       }, {
         message: corruptionLevel >= 40
           ? 'Internet Explorer cannot display this page.\n\nThe connection was refused.\n\nYou are not supposed to leave.'
@@ -268,6 +432,24 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
         iconEmoji: '🖥️',
         initialSize: { width: 600, height: 420 },
       }, { initialPath: [] });
+    }
+
+    if (action === 'minesweeper') {
+      openWindow('minesweeper', {
+        title:       'Minesweeper',
+        iconEmoji:   '💣',
+        initialSize: { width: 260, height: 380 },
+      }, {});
+      return;
+    }
+
+    if (action === 'snake') {
+      openWindow('snake', {
+        title:       'Snake',
+        iconEmoji:   '🐍',
+        initialSize: { width: 356, height: 500 },
+      }, {});
+      return;
     }
   }, [corruptionLevel, openWindow, handleOpenFile]);
 
@@ -295,35 +477,83 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
     }, 1800);
   }, []);
 
+  const handleUnlockFile = useCallback((filename: string) => {
+    setUnlockedFiles(prev => {
+      const next = new Set(prev).add(filename);
+      localStorage.setItem('xp_unlocked', JSON.stringify([...next]));
+      return next;
+    });
+  }, []);
+
   useEffect(() => {
     if (!safeToClose) return;
-    // Wait in silence, then start erasing
-    const id = setTimeout(() => setSafePhase('erasing'), PAUSE_BEFORE);
-    return () => clearTimeout(id);
-  }, [safeToClose]);
 
-  useEffect(() => {
-    if (safePhase === 'idle') return;
+    let cancelled = false;
+    let step      = 0;
+    let text      = ORIGINAL_TEXT;
+    let cursor    = ORIGINAL_TEXT.length;
 
-    if (safePhase === 'erasing') {
-      if (safeText.length === 0) {
-        setSafePhase('typing');
-        return;
+    const runStep = () => {
+      if (cancelled || step >= SAFE_SCRIPT.length) return;
+
+      const op = SAFE_SCRIPT[step++];
+      let delay = 50;
+
+      switch (op.op) {
+        case 'pause':
+          delay = op.ms;
+          break;
+
+        case 'showCursor':
+          setSafeCursorVis(true);
+          delay = 0;
+          break;
+
+        case 'removeCursor':
+          setSafeCursorVis(false);
+          delay = 0;
+          break;
+
+        case 'backspace':
+          if (cursor > 0) {
+            text   = text.slice(0, cursor - 1) + text.slice(cursor);
+            cursor--;
+            setSafeText(text);
+            setSafeCursorPos(cursor);
+          }
+          delay = 120;
+          break;
+
+        case 'deleteForward':
+          if (cursor < text.length) {
+            text = text.slice(0, cursor) + text.slice(cursor + 1);
+            setSafeText(text);
+            setSafeCursorPos(cursor);
+          }
+          delay = DELETE_SPEED;
+          break;
+
+        case 'type':
+          text   = text.slice(0, cursor) + op.char + text.slice(cursor);
+          cursor++;
+          setSafeText(text);
+          setSafeCursorPos(cursor);
+          delay = TYPE_SPEED;
+          break;
+
+        case 'moveCursor':
+          cursor = Math.max(0, Math.min(text.length, cursor + op.delta));
+          setSafeCursorPos(cursor);
+          delay = MOVE_SPEED;
+          break;
       }
-      const id = setTimeout(() =>
-        setSafeText(t => t.slice(0, -1))
-      , ERASE_SPEED);
-      return () => clearTimeout(id);
-    }
 
-    if (safePhase === 'typing') {
-      if (safeText === MUTATED_TEXT) return;   // done
-      const id = setTimeout(() =>
-        setSafeText(MUTATED_TEXT.slice(0, safeText.length + 1))
-      , TYPE_SPEED);
-      return () => clearTimeout(id);
-    }
-  }, [safePhase, safeText]);
+      if (!cancelled) setTimeout(runStep, delay);
+    };
+
+    runStep();
+    return () => { cancelled = true; };
+  }, [safeToClose]);
 
   // ── Horror event handler ─────────────────────────────────────────────
   const handleHorrorEvent = useCallback((e: { type: string; payload?: Record<string, string> }) => {
@@ -334,18 +564,20 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
     }
 
     if (e.type === 'open_notepad') {
+      const ghostId = makeId();
       openWindow('notepad', {
-        title:     'Untitled - Notepad',
-        iconEmoji: '📄',
+        title:           'Untitled - Notepad',
+        iconEmoji:       '📄',
         initialSize:     { width: 420, height: 280 },
         initialPosition: {
-          // Appears slightly off-center — not where you'd expect
           x: 200 + Math.random() * 300,
           y: 80  + Math.random() * 200,
         },
       }, {
-        filename:   'Untitled',
-        getContent: () => e.payload?.content ?? '',
+        filename:          'Untitled',
+        instanceId:        ghostId,
+        baseContent:       e.payload?.content ?? '',
+        corruptionAppends: [],
       });
       return;
     }
@@ -354,7 +586,7 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
       openWindow('error', {
         title:     'System Error',
         iconEmoji: '⚠️',
-        initialSize:     { width: 380, height: 220 },
+        initialSize:     { width: 380, height: 280 },
         initialPosition: {
           x: 250 + Math.random() * 250,
           y: 100 + Math.random() * 180,
@@ -373,19 +605,23 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
       case 'notepad':
         return (
           <Notepad
-            filename=        {win.appProps.filename as string}
-            corruptionLevel= {corruptionLevel}
-            getContent=      {win.appProps.getContent as (c: number) => string}
+            filename=         {win.appProps.filename as string}
+            instanceId=       {win.appProps.instanceId as string}
+            corruptionLevel=  {corruptionLevel}
+            baseContent=      {win.appProps.baseContent as string}
+            corruptionAppends={(win.appProps.corruptionAppends as CorruptionAppend[]) ?? []}
           />
         );
 
       case 'explorer':
         return (
           <FileExplorer
-            initialPath=         {win.appProps.initialPath as string[]}
-            corruptionLevel=     {corruptionLevel}
-            onOpenFile=          {handleOpenFile}
-            incrementCorruption= {incrementCorruption}
+            initialPath=    {win.appProps.initialPath as string[]}
+            corruptionLevel={corruptionLevel}
+            onOpenFile=     {handleOpenFile}
+            triggerOnce=    {triggerOnce}               // ← was incrementCorruption
+            deletedFiles=    {deletedFiles}
+            unlockedFiles=   {unlockedFiles} 
           />
         );
 
@@ -395,6 +631,31 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
             message=         {win.appProps.message as string}
             corruptionLevel= {corruptionLevel}
             onClose=         {() => closeWindow(win.id)}
+          />
+        );
+
+      case 'image':
+        return (
+          <ImageViewer
+            src=     {win.appProps.src      as string}
+            filename={win.appProps.filename as string}
+          />
+        );
+
+      case 'minesweeper':
+        return (
+          <Minesweeper
+            triggerOnce=  {triggerOnce}
+            onUnlockFile= {handleUnlockFile}
+          />
+        );
+
+      case 'snake':
+        return (
+          <Snake
+            triggerOnce=  {triggerOnce}
+            onUnlockFile= {handleUnlockFile}
+            onCrash=      {handleSnakeCrash}   // ← ADD
           />
         );
 
@@ -415,6 +676,11 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
             cursorActive                   ? styles.corruptedCursor : '',
             isShuttingDown                 ? 'crt-shutdown'         : '', 
           ].join(' ')}
+          style={
+            gifCursorSrc
+              ? { cursor: `url(${gifCursorSrc}) 16 16, auto` }  // gif on real cursor best-effort
+              : undefined
+          }
         >
           {/* Desktop (wallpaper + icons) */}
           <Desktop
@@ -425,13 +691,16 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
           {/* Windows — rendered in z-order (last = topmost) */}
           {windows.map(win => (
             <Window
-              key=         {win.id}
-              config=      {win.config}
-              isActive=    {activeId === win.id}
-              isMinimized= {win.minimized}
-              onFocus=     {() => focusWindow(win.id)}
-              onClose=     {() => closeWindow(win.id)}
-              onMinimize=  {() => toggleMinimize(win.id)}
+              key=             {win.id}
+              config=          {win.config}
+              isActive=        {activeId === win.id}
+              isMinimized=     {win.minimized}
+              isMaximized=     {win.maximized}
+              forceFullscreen= {win.forceFullscreen}   // ← ADD
+              onFocus=         {() => focusWindow(win.id)}
+              onClose=         {() => handleCloseWindow(win.id)}
+              onMinimize=      {() => toggleMinimize(win.id)}
+              onMaximize=      {() => maximizeWindow(win.id)}
             >
               {renderApp(win)}
             </Window>
@@ -467,12 +736,43 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
       {safeToClose && (
         <div className={styles.safeToClose}>
           <p className={styles.safeText}>
-            {safeText}
-            <span className={
-              safePhase === 'idle' ? '' : styles.crtCursor
-            } aria-hidden>▋</span>
+            {safeText.slice(0, safeCursorPos)}
+            {safeCursorVis && (
+              <span className={styles.crtCursor} aria-hidden>▋</span>
+            )}
+            {safeText.slice(safeCursorPos)}
           </p>
         </div>
+      )}
+
+      {crashBlocked && !showCrashScare && (
+        <div
+          style={{
+            position:      'fixed',
+            inset:         0,
+            zIndex:        8000,
+            cursor:        'none',
+            pointerEvents: 'all',
+          }}
+          onMouseDown={e => e.stopPropagation()}
+          onClick={e     => e.stopPropagation()}
+          onContextMenu={e => e.preventDefault()}
+        />
+      )}
+
+      {/* Jumpscare — instant on, instant off */}
+      {showCrashScare && (
+        <div
+          style={{
+            position:           'fixed',
+            inset:              0,
+            zIndex:             9000,
+            backgroundImage:    'url(/wallpapers/bliss_jumpscare.jpg)',
+            backgroundSize:     'cover',
+            backgroundPosition: 'center',
+            pointerEvents:      'none',
+          }}
+        />
       )}
     </>
   );

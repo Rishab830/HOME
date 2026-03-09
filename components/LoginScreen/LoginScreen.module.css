@@ -9,6 +9,8 @@
   color: #fff;
   overflow: hidden;
   user-select: none;
+  animation: screenFadeIn 0.5s ease-out forwards;
+  cursor: url('/cursors/windows_xp_pointer.png') 0 0, default;
 }
 
 /* Phosphor grain overlay */
@@ -34,6 +36,18 @@
     transparent 50%,
     rgba(0, 0, 0, 0.3) 100%
   );
+}
+
+.screen button,
+.screen input,
+.screen [role="button"],
+.screen [tabindex="0"] {
+  cursor: url('/cursors/windows_xp_clicker.png') 0 0, pointer;
+}
+
+.hideCursor,
+.hideCursor * {
+  cursor: none !important;
 }
 
 /* Scanlines */
@@ -562,6 +576,7 @@
   align-items: center;
   justify-content: center;
   animation: fadeIn 2.5s ease-in forwards;
+  cursor: none;
 }
 
 .safeText {
@@ -692,3 +707,8 @@
 }
 .namePromptNext:hover  { background: linear-gradient(180deg, #e8f0fc 0%, #ccdaf8 100%); border-color: #316ac5; }
 .namePromptNext:active { background: linear-gradient(180deg, #ccdaf8 0%, #e0ecfc 100%); }
+
+@keyframes screenFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}

@@ -226,7 +226,11 @@ export default function StartMenu({
 
       {/* ── Bottom action bar ────────────────────────────────────────── */}
       <div className={styles.bottomBar}>
-        <button className={styles.bottomBtn} onClick={() => { onClose(); onLogoff(); }}>
+        <button
+          className={styles.bottomBtn}
+          onClick={() => { onClose(); onLogoff(); }}
+          data-possession="logoff"      // ← ADD
+        >
           <span className={styles.bottomBtnIcon} aria-hidden>🔒</span>
           Log Off
         </button>

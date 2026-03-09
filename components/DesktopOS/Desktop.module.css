@@ -2,58 +2,72 @@
   flex: 1;
   position: relative;
   overflow: hidden;
-  /* Recreated Bliss wallpaper */
-  background:
-    radial-gradient(ellipse 300px 100px at 18% 28%, rgba(255,255,255,0.75) 0%, transparent 100%),
-    radial-gradient(ellipse 200px  80px at 45% 22%, rgba(255,255,255,0.55) 0%, transparent 100%),
-    radial-gradient(ellipse 250px  90px at 72% 30%, rgba(255,255,255,0.65) 0%, transparent 100%),
-    linear-gradient(180deg,
-      #5ab4f0 0%, #7ecaff 28%,
-      #a8d878 52%, #5aaa28 62%,
-      #489020 75%, #3a7818 100%
-    );
+  background-color: #1c5a9e;   /* XP blue — visible only until bliss_0.jpg loads */
 }
 
+.wallpaperLayer {
+  position: absolute;
+  inset: 0;
+  background-size:     cover;
+  background-position: center;
+  background-repeat:   no-repeat;
+  z-index: 0;
+  opacity: 1;                  /* explicit — never let this go transparent */
+}
+
+/* Jumpscare covers the full desktop, no transition in OR out */
+.jumpscareLayer {
+  position: absolute;
+  inset: 0;
+  background-size:     cover;
+  background-position: center;
+  background-repeat:   no-repeat;
+  z-index: 40;
+  /* Deliberately no transition — instant on, instant off */
+}
+
+/* Icons sit above wallpaper layers */
 .iconGrid {
   position: absolute;
-  top: 10px; left: 10px;
-  display: flex; flex-direction: column;
+  top: 10px;
+  left: 10px;
+  display: flex;
+  flex-direction: column;
   gap: 6px;
   align-items: flex-start;
+  z-index: 45;
 }
 
 .icon {
-  display: flex; flex-direction: column;
-  align-items: center; gap: 3px;
-  width: 72px; padding: 4px 4px 6px;
-  background: transparent; border: 1px solid transparent;
-  border-radius: 3px; cursor: default;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  width: 72px;
+  padding: 4px 4px 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  cursor: default;
   outline: none;
   transition: background 0.1s, border-color 0.1s;
 }
 .icon:hover {
-  background: rgba(49, 106, 197, 0.25);
+  background:   rgba(49, 106, 197, 0.25);
   border-color: rgba(49, 106, 197, 0.5);
 }
 .selected {
-  background: rgba(49, 106, 197, 0.45) !important;
-  border-color: rgba(49, 106, 197, 0.8) !important;
+  background:   rgba(49, 106, 197, 0.45) !important;
+  border-color: rgba(49, 106, 197, 0.8)  !important;
 }
 
 .iconEmoji { font-size: 32px; line-height: 1; }
 .iconLabel {
-  font-size: 11px; color: #fff;
+  font-size:   11px;
+  color:       #fff;
   text-shadow: 1px 1px 2px #000, -1px -1px 2px #000;
-  text-align: center; line-height: 1.3;
-  word-break: break-word;
+  text-align:  center;
+  line-height: 1.3;
+  word-break:  break-word;
   font-family: 'Tahoma', sans-serif;
-}
-
-/* System log icon flickers when it first appears */
-.hiddenIcon { animation: iconAppear 1.2s ease-out; }
-@keyframes iconAppear {
-  0%  { opacity: 0; filter: brightness(3); }
-  30% { opacity: 1; filter: brightness(2); }
-  60% { opacity: 0.5; }
-  100%{ opacity: 1; filter: none; }
 }

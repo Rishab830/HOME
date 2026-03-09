@@ -5,6 +5,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import styles from './LoginScreen.module.css';
 import { useCorruption } from '@/hooks/useCorruption';
+import { useCorruptedCursor } from '@/hooks/useCorruptedCursor';
 
 // ─── Secret credentials ──────────────────────────────────────────────────────
 // The player discovers these by reading corrupted files deep in the OS.
@@ -70,6 +71,15 @@ export default function LoginScreen({ onLogin, onTurnOff }: Props) {
   const [showNamePrompt, setShowNamePrompt] = useState(false);
   const [nameInput, setNameInput] = useState('');
   const passwordRef = useRef<HTMLInputElement>(null);
+  const [gifCursorSrc, setGifCursorSrc] = useState<string | null>(null);
+
+  const cursorActive = corruptionLevel >= 0;
+  useCorruptedCursor({
+    active:     cursorActive,
+    corruption: corruptionLevel,
+    onGifStart: useCallback((src: string) => setGifCursorSrc(src), []),
+    onGifEnd:   useCallback(() => setGifCursorSrc(null),           []),
+  });
 
   const handleNameSubmit = useCallback(() => {
     const trimmed = nameInput.trim();
@@ -180,6 +190,7 @@ export default function LoginScreen({ onLogin, onTurnOff }: Props) {
             isAggressive ? styles.aggressive  : '',
             isMaxCorrupt ? styles.maxCorrupt  : '',
             isShuttingDown ? 'crt-shutdown'  : '',
+            cursorActive   ? styles.hideCursor  : '',
           ].join(' ')}
           aria-label="Windows XP Login Screen"
         >

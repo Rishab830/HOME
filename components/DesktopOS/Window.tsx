@@ -21,15 +21,17 @@ interface Props {
   onClose:     () => void;
   onMinimize:  () => void;
   children:    ReactNode;
+  isMaximized: boolean;        // ← ADD
+  onMaximize:  () => void;     // ← ADD
+  forceFullscreen?: boolean;   // ← ADD
 }
 
 export default function Window({
   config, isActive, isMinimized,
-  onFocus, onClose, onMinimize, children,
+  onFocus, onClose, onMinimize, children, isMaximized, onMaximize, forceFullscreen,
 }: Props) {
   const [pos,  setPos]  = useState(config.initialPosition ?? { x: 120, y: 60 });
   const [size, setSize] = useState(config.initialSize     ?? { width: 620, height: 440 });
-  const [maximized, setMaximized] = useState(false);
   const savedState = useRef({ pos, size });
 
   // ── Dragging ─────────────────────────────────────────────────────────
@@ -37,12 +39,12 @@ export default function Window({
   const dragOrigin = useRef({ mx: 0, my: 0, px: 0, py: 0 });
 
   const onTitleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (maximized) return;
+    if (isMaximized) return;
     e.preventDefault();
     onFocus();
     dragging.current = true;
     dragOrigin.current = { mx: e.clientX, my: e.clientY, px: pos.x, py: pos.y };
-  }, [maximized, pos, onFocus]);
+  }, [isMaximized, pos, onFocus]);
 
   useEffect(() => {
     const move = (e: MouseEvent) => {
@@ -61,16 +63,16 @@ export default function Window({
     };
   }, []);
 
+  useEffect(() => {
+    if (!forceFullscreen) return;
+    setPos({ x: 0, y: 0 });
+    setSize({ width: window.innerWidth, height: window.innerHeight - 30 });
+  }, [forceFullscreen]);
+
   // ── Maximise toggle ──────────────────────────────────────────────────
-  const toggleMax = () => {
-    if (maximized) {
-      setPos(savedState.current.pos);
-      setSize(savedState.current.size);
-    } else {
-      savedState.current = { pos, size };
-    }
-    setMaximized(v => !v);
-  };
+  const toggleMax = useCallback(() => {
+    onMaximize();   // delegate entirely to DesktopOS
+  }, [onMaximize]);
 
   if (isMinimized) return null;
 
@@ -78,10 +80,14 @@ export default function Window({
     <div
       className={[
         styles.window,
-        isActive   ? styles.active   : styles.inactive,
-        maximized  ? styles.maximized : '',
+        isActive                    ? styles.active    : styles.inactive,
+        isMaximized || forceFullscreen ? styles.maximized : '',
       ].join(' ')}
-      style={maximized ? undefined : { left: pos.x, top: pos.y, width: size.width, height: size.height }}
+      style={
+        isMaximized || forceFullscreen
+          ? undefined
+          : { left: pos.x, top: pos.y, width: size.width, height: size.height }
+      }
       onMouseDown={onFocus}
     >
       {/* ── Title bar ──────────────────────────────────────────────── */}
@@ -99,7 +105,7 @@ export default function Window({
           <button className={`${styles.btn} ${styles.btnMin}`} onClick={onMinimize} title="Minimize">
             <span className={styles.iconMin} />
           </button>
-          <button className={`${styles.btn} ${styles.btnMax}`} onClick={toggleMax} title="Maximize">
+          <button className={`${styles.btn} ${styles.btnMax}`} onClick={onMaximize} title="Maximize">
             <span className={styles.iconMax} />
           </button>
           <button className={`${styles.btn} ${styles.btnClose}`} onClick={onClose} title="Close">

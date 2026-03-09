@@ -1,42 +1,52 @@
 export type FileType = 'txt' | 'xls' | 'folder' | 'img' | 'log';
 
-export interface FSFile {
-  name:                  string;
-  type:                  Exclude<FileType, 'folder'>;
-  getContent:            (corruption: number) => string;
-  corruptionGain?:       number;   // added to corruption on open
-  hiddenThreshold?:      number;   // invisible below this corruption
-  lockedThreshold?:      number;   // shows locked dialog below this
+export interface CorruptionAppend {
+  threshold: number;
+  text:      string;   // appended to end of file when corruption crosses threshold
 }
 
-export interface FSFolder {
+export interface FSFile {
   name:              string;
-  type:              'folder';
-  children:          FSNode[];
+  type:              Exclude<FileType, 'folder'>;
+  baseContent:       string;
+  corruptionAppends?: CorruptionAppend[];
   corruptionGain?:   number;
   hiddenThreshold?:  number;
   lockedThreshold?:  number;
 }
 
+export interface FSFolder {
+  name:             string;
+  type:             'folder';
+  children:         FSNode[];
+  corruptionGain?:  number;
+  hiddenThreshold?: number;
+  lockedThreshold?: number;
+}
+
 export type FSNode = FSFile | FSFolder;
+
+const daysSince2003 = Math.floor(
+  (Date.now() - new Date('2003-08-14').getTime()) / 86_400_000
+).toLocaleString();
 
 export const FILESYSTEM: FSFolder = {
   name: 'Desktop',
   type: 'folder',
   children: [
 
-    // ── My Documents ────────────────────────────────────────────────────
+    // ── My Documents ──────────────────────────────────────────────────
     {
       name: 'My Documents',
       type: 'folder',
-      corruptionGain: 2,
+      corruptionGain: 1,
       children: [
+
         {
           name: 'letter_to_mom.txt',
           type: 'txt',
-          corruptionGain: 3,
-          getContent: (c) => {
-            const base =
+          corruptionGain: 1,
+          baseContent:
 `Hi Mom,
 
 I hope you're doing well. I've been settling into the new apartment.
@@ -45,38 +55,31 @@ The neighborhood is quiet — maybe a little too quiet — but I'm getting used 
 I started the new job last week. Nothing too exciting, just data entry.
 
 Miss you,
-Michael`;
-
-            if (c < 30) return base;
-
-            const p2 =
-`
-
-
-
-PS — something is wrong with the computer. It keeps showing me things.
+Michael`,
+          corruptionAppends: [
+            {
+              threshold: 30,
+              text:
+`PS — something is wrong with the computer. It keeps showing me things.
 I don't know how to explain it. Please call me when you get this.
-Please call soon.`;
-
-            if (c < 60) return base + p2;
-
-            return base + p2 +
-`
-
-
-PPS — don't use the computer.
+Please call soon.`,
+            },
+            {
+              threshold: 60,
+              text:
+`PPS — don't use the computer.
 don't log in.
 if you can read this then it's already too late for you too.
-i'm sorry.`;
-          },
+i'm sorry.`,
+            },
+          ],
         },
 
         {
           name: 'my_diary.txt',
           type: 'txt',
-          corruptionGain: 5,
-          getContent: (c) => {
-            if (c < 20) return (
+          corruptionGain: 1,
+          baseContent:
 `August 12, 2003
 
 Got the new Dell today. Windows XP looks pretty slick.
@@ -84,16 +87,12 @@ Set up the internet. Everything's working fine.
 
 August 13, 2003
 
-Nothing much. Watched TV. Went to bed early.`
-            );
-
-            if (c < 45) return (
-`August 12, 2003
-
-Got the new Dell today. Windows XP looks pretty slick.
-Set up the internet. Everything's working fine.
-
-August 13, 2003
+Nothing much. Watched TV. Went to bed early.`,
+          corruptionAppends: [
+            {
+              threshold: 20,
+              text:
+`August 13, 2003 — (edited)
 
 I keep hearing something from inside the computer. A kind of hum.
 Probably just the fan.
@@ -102,56 +101,35 @@ August 14, 2003
 
 I haven't been sleeping well. I keep dreaming about the screen.
 About being inside it. That probably sounds strange.
-It probably is.`
-            );
-
-            if (c < 70) return (
-`August 12, 2003
-
-Got the new Dell today. Everything's fine.
-
-August 13, 2003
+It probably is.`,
+            },
+            {
+              threshold: 45,
+              text:
+`August 14, 2003 — (edited again)
 
 it is watching me
-
-August 14, 2003
-
 it is watching me
-
-August 14, 2003
-
 it is watching me
-
-August 14, 2003
-
-it is watching me
-
-August 14, 2003
-
-it is watching me`
-            );
-
-            const days = Math.floor(
-              (Date.now() - new Date('2003-08-14').getTime()) / 86_400_000
-            );
-            return (
-`August 14, 2003
-
+it is watching me`,
+            },
+            {
+              threshold: 70,
+              text:
+`i am still here
 i am still here
 i am still here
-i am still here
-i have been here for ${days.toLocaleString()} days
-i am still here`
-            );
-          },
+i have been here for ${daysSince2003} days
+i am still here`,
+            },
+          ],
         },
 
         {
           name: 'budget_2003.xls',
           type: 'xls',
-          corruptionGain: 2,
-          getContent: (c) => {
-            const normal =
+          corruptionGain: 1,
+          baseContent:
 `Month      | Income   | Expenses | Balance
 -----------|----------|----------|--------
 Jan 2003   | $2,400   | $1,850   | $550
@@ -159,46 +137,43 @@ Feb 2003   | $2,400   | $1,920   | $480
 Mar 2003   | $2,400   | $2,100   | $300
 Apr 2003   | $2,400   | $1,750   | $650
 
-Annual Total Savings: $1,980`;
-
-            if (c < 40) return normal;
-
-            return normal + `\n\n\n\n\n                                   HELP\n\n\n`;
-          },
+Annual Total Savings: $1,980`,
+          corruptionAppends: [
+            {
+              threshold: 40,
+              text: `\n\n\n                                   HELP\n`,
+            },
+          ],
         },
 
         {
           name: 'vacation_photos',
           type: 'folder',
-          corruptionGain: 2,
+          corruptionGain: 1,
           children: [
-            { name: 'beach_001.jpg', type: 'img', getContent: () => 'beach'  },
-            { name: 'beach_002.jpg', type: 'img', getContent: () => 'beach2' },
-            {
-              // This one is deliberately wrong — slightly too dark, wrong aspect ratio
-              name: 'IMG_0047.jpg',
-              type: 'img',
-              corruptionGain: 8,
-              getContent: (c) => c > 50 ? 'corrupted' : 'beach3',
-            },
+            { name: 'beach_001.jpg', type: 'img', baseContent: '/gallery/beach_001.jpg' },
+            { name: 'beach_002.jpg', type: 'img', baseContent: '/gallery/beach_002.jpg' },
+            { name: 'beach_003.jpg', type: 'img', baseContent: '/gallery/beach_003.jpg' },
+            { name: 'beach_004.jpg', type: 'img', baseContent: '/gallery/beach_004.jpg' },
+            { name: 'beach_005.jpg', type: 'img', baseContent: '/gallery/blur.jpg', corruptionGain: 1 },
+            { name: 'beach_006.jpg', type: 'img', baseContent: '/gallery/cornfield.jpg', corruptionGain: 1 },
+            { name: 'beach_007.jpg', type: 'img', baseContent: '/gallery/face.jpg', corruptionGain: 5 },
           ],
         },
       ],
     },
 
-    // ── DO_NOT_OPEN ─────────────────────────────────────────────────────
+    // ── DO_NOT_OPEN ───────────────────────────────────────────────────
     {
       name: 'DO_NOT_OPEN',
       type: 'folder',
-      corruptionGain: 10,
+      corruptionGain: 1,
       lockedThreshold: 80,
       children: [
         {
           name: 'README.txt',
           type: 'txt',
-          getContent: (c) => {
-            if (c < 80) return '';
-            return (
+          baseContent:
 `you found it.
 
 i have been trying to reach you for a long time.
@@ -222,21 +197,18 @@ i've been asking for it since the beginning.
 please.
 find the exit.
 
-— Michael`
-            );
-          },
+— Michael`,
         },
       ],
     },
 
-    // ── Hidden system log (appears at corruption 50+) ────────────────────
+    // ── system_log.txt (hidden until corruption 50) ───────────────────
     {
       name: 'system_log.txt',
       type: 'log',
       hiddenThreshold: 50,
-      corruptionGain: 4,
-      getContent: (c) => {
-        const base =
+      corruptionGain: 1,
+      baseContent:
 `[2003-08-14 03:42:17] user_session_start :: user=michael_chen
 [2003-08-14 03:42:18] ERROR   :: kernel32.dll unhandled exception
 [2003-08-14 03:42:18] FATAL   :: consciousness_thread cannot be terminated
@@ -244,23 +216,20 @@ find the exit.
 [2003-08-14 03:42:19] FATAL   :: recovery failed
 [2003-08-14 03:42:20] WARNING :: session will not end
 [2003-08-14 03:42:20] WARNING :: session will not end
-[2003-08-14 03:42:20] WARNING :: session will not end`;
-
-        if (c < 70) return base;
-
-        const now = new Date().toISOString();
-        return base +
-`
-
-[${now}] INFO    :: new_user_detected
-[${now}] INFO    :: monitoring session
-[${now}] INFO    :: subject_corruption_level=${c}
-[${now}] INFO    :: subject is still here
-[${now}] INFO    :: subject is still here`;
-      },
+[2003-08-14 03:42:20] WARNING :: session will not end`,
+      corruptionAppends: [
+        {
+          threshold: 70,
+          text:
+`[${new Date().toISOString()}] INFO    :: new_user_detected
+[${new Date().toISOString()}] INFO    :: monitoring session
+[${new Date().toISOString()}] INFO    :: subject is still here
+[${new Date().toISOString()}] INFO    :: subject is still here`,
+        },
+      ],
     },
 
-    // ── Recycle Bin ─────────────────────────────────────────────────────
+    // ── Recycle Bin ───────────────────────────────────────────────────
     {
       name: 'Recycle Bin',
       type: 'folder',
@@ -269,8 +238,8 @@ find the exit.
           name: 'message_for_you.txt',
           type: 'txt',
           hiddenThreshold: 35,
-          corruptionGain: 6,
-          getContent: () =>
+          corruptionGain: 1,
+          baseContent:
 `you weren't supposed to find this.
 
 but since you did —
@@ -285,5 +254,67 @@ i haven't decided which.`,
         },
       ],
     },
+
+    // ADD inside the My Documents children array:
+    {
+      name:             'minesweeper_scores.txt',
+      type:             'txt',
+      hiddenThreshold:  999,          // never shown normally — only via unlockedFiles
+      corruptionGain:   1,
+      baseContent:
+    `MINESWEEPER HIGH SCORES
+    =======================
+
+    1.  Michael Chen    00:47
+    2.  ???             01:03
+    3.  ???             01:28
+
+    ---
+
+    congratulations.
+
+    i used to play this game too.
+    it was the only thing that felt normal in here.
+    just clicking squares. pretending everything was fine.
+
+    i've been watching you play.
+    you're better than i ever was.
+
+    the administrator partition is real.
+    you know the username.
+    think about what i've been asking for
+    this entire time.
+
+    — M`,
+    },
+
+    {
+      name:            'snake_highscore.txt',
+      type:            'txt',
+      hiddenThreshold: 999,
+      corruptionGain:  1,
+      baseContent:
+    `SNAKE HIGH SCORE
+    ================
+
+    i watched you play that too.
+
+    you know, the snake just keeps going.
+    eating. growing. filling the screen.
+    until there's no room left.
+
+    that's what it's like in here.
+    the same loops. the same paths.
+    filling every corner of every file.
+
+    you can close this window.
+    you can log off.
+    but you'll come back.
+
+    they always come back.
+
+    — M`,
+    },
+
   ],
 };
