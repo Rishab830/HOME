@@ -186,7 +186,7 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
   useEffect(() => {
     const id = setInterval(() => {
       const elapsed = (Date.now() - sessionStart.current) / 1000;
-      if (elapsed < 120 || possessionPhase.current !== 'idle') return;
+      if (elapsed < 300 || possessionPhase.current !== 'idle') return;
 
       // 2 minutes elapsed — begin possession
       const startBtn = document.querySelector<HTMLElement>('[data-possession="start"]');
