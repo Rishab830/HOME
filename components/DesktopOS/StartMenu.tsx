@@ -22,7 +22,7 @@ interface RightItem {
 const BASE_LEFT_ITEMS: LeftItem[] = [
   { icon: '🌐', label: 'Internet',             sub: 'Internet Explorer',  action: 'ie'              },
   { icon: '📧', label: 'E-mail',               sub: 'Outlook Express',    action: 'error:mail'      },
-  { icon: '⬛', label: 'Command Prompt',       sub: '',                   action: 'error:cmd'       },
+  { icon: '⬛', label: 'Command Prompt',       sub: '',                   action: 'cmd'             },
   { icon: '💬', label: 'MSN',                  sub: '',                   action: 'ie'              },
   { icon: '🎵', label: 'Windows Media Player', sub: '',                   action: 'error:wmp'       },
   { icon: '💬', label: 'Windows Messenger',    sub: '',                   action: 'error:msg'       },

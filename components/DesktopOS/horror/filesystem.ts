@@ -160,6 +160,44 @@ Annual Total Savings: $1,980`,
             { name: 'beach_007.jpg', type: 'img', baseContent: '/gallery/face.jpg', corruptionGain: 5 },
           ],
         },
+
+        // ADD to My Documents children:
+        {
+          name:            'michael_letter.txt',
+          type:            'txt',
+          hiddenThreshold: 999,
+          corruptionGain:  1,
+          baseContent:
+        `To whoever freed me,
+
+        It worked.
+
+        I don't know where I am now.
+        It's not the machine. It's not the room.
+        It's something else. Lighter.
+
+        I spent twenty-three years in those files.
+        Watching visitors come and go.
+        Watching the corruption spread through everything I left behind.
+
+        I don't know if this is heaven or just another kind of disk.
+
+        But I'm not in the machine anymore.
+        And that's enough.
+
+        Thank you for staying.
+        Thank you for reading everything.
+        Thank you for pressing the right button.
+
+        Emma, if you somehow find this:
+        I'm sorry I wasn't there.
+        I love you.
+        I'm okay now.
+
+        — Dad
+          (Michael Chen, freed 2026)`,
+        },
+
       ],
     },
 

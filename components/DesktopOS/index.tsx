@@ -11,15 +11,16 @@ import Taskbar         from './Taskbar';
 import Notepad         from './apps/Notepad';
 import FileExplorer    from './apps/FileExplorer';
 import ErrorDialog     from './apps/ErrorDialog';
+import ImageViewer from './apps/ImageViewer';
+import Minesweeper from './apps/Minesweeper';
+import Snake from './apps/Snake';
+import CommandPrompt from './apps/CommandPrompt';
 
 import { useCorruption }    from '@/hooks/useCorruption';
 import { useHorrorEvents }  from './horror/useHorrorEvents';
 import { FILESYSTEM, FSFile, FSFolder, type CorruptionAppend } from './horror/filesystem';
 import { useCorruptedCursor } from '@/hooks/useCorruptedCursor';
 import StartMenu from './StartMenu';
-import ImageViewer from './apps/ImageViewer';
-import Minesweeper from './apps/Minesweeper';
-import Snake from './apps/Snake';
 
 const ORIGINAL_TEXT = 'It is now safe to close this window.';
 const PAUSE_BEFORE  = 6000;
@@ -74,7 +75,7 @@ const SAFE_SCRIPT: ScriptOp[] = [
 ];
 
 // ─── Types ───────────────────────────────────────────────────────────────────
-type AppType = 'notepad' | 'explorer' | 'error' | 'image' | 'minesweeper' | 'snake';
+type AppType = 'notepad' | 'explorer' | 'error' | 'image' | 'minesweeper' | 'snake' | 'cmd';
 
 interface OpenWindow {
   id:         string;
@@ -108,6 +109,72 @@ interface Props {
   onTurnOff: () => void;
 }
 
+// 1. ADD GlitchOverlay component above DesktopOS export:
+function GlitchOverlay() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx    = canvas.getContext('2d');
+    if (!ctx)    return;
+
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const CW    = 12;
+    const CH    = 16;
+    const CHARS = '█▓▒░╬╫╪═║╔╗╚╝@#$%&?~01░▒▓';
+    const COLS  = Math.ceil(canvas.width  / CW);
+    const ROWS  = Math.ceil(canvas.height / CH);
+
+    const draw = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = 'rgba(0,0,0,0.88)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.font = `${CH - 2}px "Courier New", monospace`;
+
+      for (let r = 0; r < ROWS; r++) {
+        if (Math.random() > 0.35) continue;
+        const len    = Math.floor(Math.random() * COLS * 0.7) + 1;
+        const startC = Math.floor(Math.random() * (COLS - len));
+        const y      = r * CH + CH - 3;
+
+        const rr = Math.floor(Math.random() * 256);
+        const gg = Math.floor(Math.random() * 80);
+        const bb = Math.floor(Math.random() * 256);
+        ctx.fillStyle = `rgba(${rr},${gg},${bb},0.85)`;
+
+        for (let c = startC; c < startC + len; c++) {
+          ctx.fillText(
+            CHARS[Math.floor(Math.random() * CHARS.length)],
+            c * CW, y
+          );
+        }
+      }
+    };
+
+    const id = setInterval(draw, 50);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      style={{
+        position:       'fixed',
+        inset:          0,
+        zIndex:         9000,
+        pointerEvents:  'none',
+        width:          '100vw',
+        height:         '100vh',
+        animation:      'glitchOverlayFade 0.82s ease-out forwards',
+      }}
+    />
+  );
+}
+
 export default function DesktopOS({ onLogout, onTurnOff }: Props) {
   const { corruptionLevel, incrementCorruption, triggerOnce } = useCorruption();
 
@@ -130,6 +197,7 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
   const possessionPhase = useRef<'idle' | 'toStart' | 'toLogoff'>('idle');
   const sessionStart    = useRef(Date.now());
   const speedTimer      = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [showCmdGlitch, setShowCmdGlitch] = useState(false);
 
   const [deletedFiles, setDeletedFiles] = useState<Set<string>>(() => {
     if (typeof window === 'undefined') return new Set();
@@ -384,6 +452,11 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
     });
   }, [corruptionLevel, incrementCorruption, openWindow]);  // ← ADD THIS LINE
 
+  const handleCmdGlitch = useCallback((ms: number) => {
+    setShowCmdGlitch(true);
+    setTimeout(() => setShowCmdGlitch(false), ms);
+  }, []);
+
   // ── Desktop icon / action routing ───────────────────────────────────
   const handleOpenApp = useCallback((action: string) => {
     // explorer:FolderName
@@ -451,6 +524,16 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
       }, {});
       return;
     }
+    
+    if (action === 'cmd') {
+      openWindow('cmd', {
+        title:       'C:\\  Command Prompt',
+        iconEmoji:   '⬛',
+        initialSize: { width: 580, height: 400 },
+      }, {});
+      return;
+    }
+
   }, [corruptionLevel, openWindow, handleOpenFile]);
 
   const handleStartMenuApp = useCallback((action: string) => {
@@ -659,6 +742,18 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
           />
         );
 
+      case 'cmd':
+        return (
+          <CommandPrompt
+            corruptionLevel= {corruptionLevel}
+            triggerOnce=     {triggerOnce}
+            onUnlockFile=    {handleUnlockFile}
+            onGlitch=        {handleCmdGlitch}
+            unlockedFiles=   {unlockedFiles}   // ← ADD
+            onExit=          {() => closeWindow(win.id)}
+          />
+        );
+
       default:
         return null;
     }
@@ -774,6 +869,8 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
           }}
         />
       )}
+
+      {showCmdGlitch && <GlitchOverlay />}
     </>
   );
 }

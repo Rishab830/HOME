@@ -443,3 +443,116 @@
   cursor:      default;
 }
 
+/* ── COMMAND PROMPT ──────────────────────────────────────────────────────── */
+.cmdWrap {
+  display:        flex;
+  flex-direction: column;
+  height:         100%;
+  background:     #000;
+  font-family:    'Courier New', 'Lucida Console', monospace;
+  font-size:      13px;
+  cursor:         text;
+  padding:        4px;
+  box-sizing:     border-box;
+}
+
+.cmdOutput {
+  flex:        1;
+  overflow-y:  auto;
+  padding:     4px 2px;
+  scrollbar-width: thin;
+  scrollbar-color: #444 #000;
+}
+.cmdOutput::-webkit-scrollbar       { width: 8px; }
+.cmdOutput::-webkit-scrollbar-track { background: #000; }
+.cmdOutput::-webkit-scrollbar-thumb { background: #444; }
+
+.cmdLine {
+  color:       #c0c0c0;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break:  break-all;
+  min-height:  1.45em;
+}
+
+.cmdInput  { color: #ffffff; }
+.cmdError  { color: #ff6b6b; }
+.cmdSys    { color: #909090; }
+.cmdGame   { color: #00dd99; }
+
+.cmdGlitch {
+  color:     #ff2200;
+  animation: cmdGlitchFlicker 0.12s steps(2) 4;
+}
+@keyframes cmdGlitchFlicker {
+  0%, 100% { opacity: 1;   color: #ff2200;  transform: none;             }
+  50%       { opacity: 0.4; color: #ff8800;  transform: translateX(3px);  }
+}
+
+.cmdInputRow {
+  display:     flex;
+  align-items: center;
+  padding:     2px 0;
+  border-top:  1px solid #1a1a1a;
+  flex-shrink: 0;
+}
+
+.cmdPromptLabel {
+  color:       #c0c0c0;
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-family: 'Courier New', monospace;
+  font-size:   13px;
+}
+
+.cmdField {
+  flex:        1;
+  background:  transparent;
+  border:      none;
+  outline:     none;
+  color:       #fff;
+  font-family: 'Courier New', 'Lucida Console', monospace;
+  font-size:   13px;
+  caret-color: #fff;
+  padding:     0;
+}
+.cmdField:disabled { opacity: 1; }   /* don't grey out during typewriter */
+
+/* Inline prompt line with blinking cursor */
+.cmdCurrentLine {
+  color:       #c0c0c0;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break:  break-all;
+  display:     inline;
+}
+
+.cmdPromptSpan {
+  color: #c0c0c0;
+}
+
+.cmdCursor {
+  color:             #c0c0c0;
+  animation:         cmdBlink 1s step-end infinite;
+  display:           inline-block;
+}
+
+@keyframes cmdBlink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+/* Off-screen — focusable but invisible */
+.cmdHiddenInput {
+  position:       fixed;
+  left:           -9999px;
+  top:            -9999px;
+  width:          1px;
+  height:         1px;
+  opacity:        0;
+  background:     transparent;
+  border:         none;
+  outline:        none;
+  pointer-events: none;
+}
+
