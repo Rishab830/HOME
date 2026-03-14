@@ -10,8 +10,8 @@ import { useCorruptedCursor } from '@/hooks/useCorruptedCursor';
 // ─── Secret credentials ──────────────────────────────────────────────────────
 // The player discovers these by reading corrupted files deep in the OS.
 // Username is intentionally XP-flavored. Password is the entity's plea.
-export const SECRET_USER = '.\\administrator';
-export const SECRET_PASS = 'letmefree';
+const SECRET_USER = '.\\administrator';
+const SECRET_PASS = 'letmefree';
 
 // ─── Corruption message ladder ───────────────────────────────────────────────
 interface LoginMessage {

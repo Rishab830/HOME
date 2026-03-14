@@ -18,7 +18,7 @@ import CommandPrompt from './apps/CommandPrompt';
 
 import { useCorruption }    from '@/hooks/useCorruption';
 import { useHorrorEvents }  from './horror/useHorrorEvents';
-import { FILESYSTEM, FSFile, FSFolder, type CorruptionAppend } from './horror/filesystem';
+import { FSFile, type CorruptionAppend } from './horror/filesystem';
 import { useCorruptedCursor } from '@/hooks/useCorruptedCursor';
 import StartMenu from './StartMenu';
 
@@ -91,17 +91,6 @@ interface OpenWindow {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 let _windowCounter = 0;
 function makeId() { return `wnd_${++_windowCounter}_${Date.now()}`; }
-
-function findFileInFS(name: string, folder: FSFolder): FSFile | null {
-  for (const node of folder.children) {
-    if (node.type !== 'folder' && node.name === name) return node as FSFile;
-    if (node.type === 'folder') {
-      const found = findFileInFS(name, node as FSFolder);
-      if (found) return found;
-    }
-  }
-  return null;
-}
 
 // ─── Component ───────────────────────────────────────────────────────────────
 interface Props {

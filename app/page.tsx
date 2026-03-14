@@ -8,17 +8,9 @@ type Scene = 'login' | 'desktop' | 'secret';
 
 export default function Page() {
   const [scene, setScene] = useState<Scene>('login');
-  const [isShuttingDown, setShuttingDown] = useState(false);
   const [isLoggingOff,   setLoggingOff]   = useState(false);  // ← ADD
 
-  const handleShutdown = useCallback(() => {         // ← ADD
-    setShuttingDown(true);
-  }, []);
-
-  const handleShutdownComplete = useCallback(() => { // ← ADD
-    setShuttingDown(false);
-    setScene('login');
-  }, []);
+  const handleShutdown = useCallback(() => {}, []);
 
   const handleLogoff = useCallback(() => {
     setLoggingOff(true);
@@ -43,6 +35,22 @@ export default function Page() {
           onLogout={handleLogoff}
           onTurnOff={handleShutdown}
         />
+      )}
+
+      {scene === 'secret' && (
+        <div style={{
+          width: '100vw',
+          height: '100vh',
+          background: '#000',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontFamily: 'Courier New, monospace',
+          color: '#fff',
+          fontSize: '18px',
+        }}>
+          ADMINISTRATOR PARTITION — [placeholder]
+        </div>
       )}
 
       {/* Overlays render above everything */}

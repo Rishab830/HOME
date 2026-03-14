@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import styles from './Desktop.module.css';
-import { FILESYSTEM, FSNode, FSFolder, FSFile } from './horror/filesystem';
 
 interface Props {
   corruptionLevel: number;

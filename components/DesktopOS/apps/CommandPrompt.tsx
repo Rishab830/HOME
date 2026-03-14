@@ -879,10 +879,35 @@ export default function CommandPrompt({ corruptionLevel, triggerOnce, onUnlockFi
 
     // Door C requires the drawing
     if (choice.next === 'deleted' && !hasDrawing.current) {
-      addLine('The door resists your hand.', 'game');
-      addLine('Something in there does not want you unprepared.', 'game');
-      addLine('You need to find something to protect yourself first.', 'game');
-      // Don't clear gameChoicesRef — player can still pick A or B
+      const currentChoices = [...gameChoicesRef.current]; // snapshot before clearing
+      gameChoicesRef.current = [];
+
+      typeLines(
+        [
+          'The door resists your hand.',
+          'Something in there does not want you unprepared.',
+          'You need to find something to protect yourself first.',
+        ],
+        {
+          type:         'game',
+          charSpeed:    38,
+          keepDisabled: true,
+          onComplete: () => {
+            // Restore the corridor choices so the player can pick A or B
+            gameChoicesRef.current = currentChoices;
+            currentChoices.forEach((c, i) => {
+              setTimeout(
+                () => addLine(`  [${c.key}]  ${c.label}`, 'game'),
+                i * 90 + 80
+              );
+            });
+            setTimeout(
+              () => setDisabled(false),
+              currentChoices.length * 90 + 200
+            );
+          },
+        }
+      );
       return;
     }
 
