@@ -10,6 +10,8 @@ import styles          from './DesktopOS.module.css';
 import Window, { WindowConfig } from './Window';
 import Desktop         from './Desktop';
 import Taskbar         from './Taskbar';
+import GlitchOverlay      from './GlitchOverlay';
+import SafeToCloseScreen  from './SafeToCloseScreen';
 import Notepad         from './apps/Notepad';
 import FileExplorer    from './apps/FileExplorer';
 import ErrorDialog     from './apps/ErrorDialog';
@@ -24,57 +26,7 @@ import { FSFile, type CorruptionAppend } from './horror/filesystem';
 import { useCorruptedCursor } from '@/hooks/useCorruptedCursor';
 import StartMenu from './StartMenu';
 
-const ORIGINAL_TEXT = 'It is now safe to close this window.';
-const PAUSE_BEFORE  = 6000;
-const MOVE_SPEED    = 100;    // ms per cursor step while travelling
-const TYPE_SPEED    = 100;    // ms per character typed
-const DELETE_SPEED  = 100;    // ms per character deleted
 const JUMPSCARE_DURATION = 1000;
-
-type ScriptOp =
-  | { op: 'pause';         ms: number }
-  | { op: 'showCursor'                }
-  | { op: 'removeCursor'              }
-  | { op: 'backspace'                 }   // delete char BEFORE cursor
-  | { op: 'deleteForward'             }   // delete char AT cursor
-  | { op: 'type';          char: string }
-  | { op: 'moveCursor';    delta: -1 | 1 };
-
-// Defined outside the component — it's a pure constant
-const SAFE_SCRIPT: ScriptOp[] = [
-  { op: 'pause',      ms: PAUSE_BEFORE },
-  { op: 'showCursor'                   },
-  { op: 'pause',      ms: 400          },
-
-  // ── 1. Replace '.' with '?' ───────────────────────────────────────
-  { op: 'backspace'                    },   // remove '.'
-  { op: 'type',       char: '?'        },   // add '?'
-  { op: 'pause',      ms: 700          },
-
-  // ── 2. Travel cursor left to position 0 ──────────────────────────
-  // "It is now safe to close this window?" = 36 chars, cursor at 36
-  ...Array.from({ length: 36 }, (): ScriptOp => ({ op: 'moveCursor', delta: -1 })),
-  { op: 'pause',      ms: 350          },
-
-  // ── 3. Delete 'It ' (3 chars forward) ────────────────────────────
-  { op: 'deleteForward'                },   // 'I' → 't is now...'
-  { op: 'deleteForward'                },   // 't' → ' is now...'
-  { op: 'deleteForward'                },   // ' ' → 'is now...'
-
-  // ── 4. Capitalise 'i' of 'is' ────────────────────────────────────
-  { op: 'deleteForward'                },   // 'i' → 's now...'
-  { op: 'type',       char: 'I'        },   // → 'Is now...'   cursor at 1
-
-  // ── 5. Move cursor to position 3 (after 'Is ') ───────────────────
-  { op: 'moveCursor', delta: 1         },   // cursor → 2 (after 's')
-  { op: 'moveCursor', delta: 1         },   // cursor → 3 (after ' ')
-
-  // ── 6. Type 'it ' — shifts 'now...' right ────────────────────────
-  { op: 'type',       char: 'i'        },   // 'Is inow...'
-  { op: 'type',       char: 't'        },   // 'Is itnow...'
-  { op: 'type',       char: ' '        },
-  { op: 'removeCursor'                   },
-];
 
 // ─── Per-app prop shapes ──────────────────────────────────────────────────────
 export interface NotepadProps {
@@ -131,88 +83,6 @@ interface Props {
   onLogout: () => void;
   onTurnOff: () => void;
 }
-
-// 1. ADD GlitchOverlay component above DesktopOS export:
-function GlitchOverlay() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const CW    = 12;
-    const CH    = 16;
-    const CHARS = '█▓▒░╬╫╪═║╔╗╚╝@#$%&?~01░▒▓';
-
-    let COLS = 0;
-    let ROWS = 0;
-    let intervalId: ReturnType<typeof setInterval> | null = null;
-
-    const resize = () => {
-      canvas.width  = window.innerWidth;
-      canvas.height = window.innerHeight;
-      COLS = Math.ceil(canvas.width  / CW);
-      ROWS = Math.ceil(canvas.height / CH);
-    };
-
-    const draw = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = 'rgba(0,0,0,0.88)';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.font = `${CH - 2}px "Courier New", monospace`;
-
-      for (let r = 0; r < ROWS; r++) {
-        if (Math.random() > 0.35) continue;
-        const len    = Math.floor(Math.random() * COLS * 0.7) + 1;
-        const startC = Math.floor(Math.random() * (COLS - len));
-        const y      = r * CH + CH - 3;
-
-        const rr = Math.floor(Math.random() * 256);
-        const gg = Math.floor(Math.random() * 80);
-        const bb = Math.floor(Math.random() * 256);
-        ctx.fillStyle = `rgba(${rr},${gg},${bb},0.85)`;
-
-        for (let c = startC; c < startC + len; c++) {
-          ctx.fillText(
-            CHARS[Math.floor(Math.random() * CHARS.length)],
-            c * CW, y
-          );
-        }
-      }
-    };
-
-    // Set initial size, then start drawing
-    resize();
-    intervalId = setInterval(draw, 50);
-
-    // Keep canvas dimensions in sync with window
-    const observer = new ResizeObserver(resize);
-    observer.observe(document.body);
-
-    return () => {
-      if (intervalId) clearInterval(intervalId);
-      observer.disconnect();
-    };
-  }, []);
-
-  return (
-    <canvas
-      ref={canvasRef}
-      style={{
-        position:       'fixed',
-        inset:          0,
-        zIndex:         9000,
-        pointerEvents:  'none',
-        width:          '100vw',
-        height:         '100vh',
-        animation:      'glitchOverlayFade 0.82s ease-out forwards',
-      }}
-    />
-  );
-}
-
 
 interface AppContentProps {
   win:             OpenWindow;
@@ -321,9 +191,6 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
   const [showStartMenu, setShowStartMenu] = useState(false);
   const [isShuttingDown, setIsShuttingDown] = useState(false);
   const [safeToClose, setSafeToClose]       = useState(false);
-  const [safeText, setSafeText]             = useState(ORIGINAL_TEXT);                          // ← ADD
-  const [safeCursorPos, setSafeCursorPos] = useState(ORIGINAL_TEXT.length);
-  const [safeCursorVis, setSafeCursorVis] = useState(false);
   const [gifCursorSrc, setGifCursorSrc] = useState<string | null>(null);
   const [crashBlocked,    setCrashBlocked]    = useState(false);
   const [showCrashScare,  setShowCrashScare]  = useState(false);
@@ -715,76 +582,6 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
     });
   }, []);
 
-  useEffect(() => {
-    if (!safeToClose) return;
-
-    let cancelled = false;
-    let step      = 0;
-    let text      = ORIGINAL_TEXT;
-    let cursor    = ORIGINAL_TEXT.length;
-
-    const runStep = () => {
-      if (cancelled || step >= SAFE_SCRIPT.length) return;
-
-      const op = SAFE_SCRIPT[step++];
-      let delay = 50;
-
-      switch (op.op) {
-        case 'pause':
-          delay = op.ms;
-          break;
-
-        case 'showCursor':
-          setSafeCursorVis(true);
-          delay = 0;
-          break;
-
-        case 'removeCursor':
-          setSafeCursorVis(false);
-          delay = 0;
-          break;
-
-        case 'backspace':
-          if (cursor > 0) {
-            text   = text.slice(0, cursor - 1) + text.slice(cursor);
-            cursor--;
-            setSafeText(text);
-            setSafeCursorPos(cursor);
-          }
-          delay = 120;
-          break;
-
-        case 'deleteForward':
-          if (cursor < text.length) {
-            text = text.slice(0, cursor) + text.slice(cursor + 1);
-            setSafeText(text);
-            setSafeCursorPos(cursor);
-          }
-          delay = DELETE_SPEED;
-          break;
-
-        case 'type':
-          text   = text.slice(0, cursor) + op.char + text.slice(cursor);
-          cursor++;
-          setSafeText(text);
-          setSafeCursorPos(cursor);
-          delay = TYPE_SPEED;
-          break;
-
-        case 'moveCursor':
-          cursor = Math.max(0, Math.min(text.length, cursor + op.delta));
-          setSafeCursorPos(cursor);
-          delay = MOVE_SPEED;
-          break;
-      }
-
-      if (!cancelled) setTimeout(runStep, delay);
-    };
-
-    runStep();
-    return () => { cancelled = true; };
-  }, [safeToClose]);
-
   // ── Horror event handler ─────────────────────────────────────────────
   const handleHorrorEvent = useCallback((e: { type: string; payload?: Record<string, string> }) => {
     if (e.type === 'screen_glitch') {
@@ -909,17 +706,7 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
         </div>
       )}
 
-      {safeToClose && (
-        <div className="safeToClose">
-          <p className="safeText">
-            {safeText.slice(0, safeCursorPos)}
-            {safeCursorVis && (
-              <span className="crt-cursor" aria-hidden>▋</span>
-            )}
-            {safeText.slice(safeCursorPos)}
-          </p>
-        </div>
-      )}
+      <SafeToCloseScreen active={safeToClose} />
 
       {crashBlocked && !showCrashScare && (
         <div
