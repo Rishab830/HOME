@@ -51,8 +51,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: fadeIn 2.5s ease-in forwards;
   cursor: none;
+  /* ← animation removed — backdrop is instant */
 }
 
 .safeText {
@@ -61,6 +61,12 @@ body {
   color: rgba(255, 255, 255, 0.75);
   text-align: center;
   letter-spacing: 0.3px;
+  opacity: 0;                        /* ← starts invisible */
+  transition: opacity 2.5s ease-in; /* ← only the text fades */
+}
+
+.safeTextVisible {
+  opacity: 1;
 }
 
 .crt-cursor {
@@ -79,4 +85,9 @@ body {
   0%   { opacity: 1; }
   75%  { opacity: 1; }
   100% { opacity: 0; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }

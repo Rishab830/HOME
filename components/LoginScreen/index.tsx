@@ -6,6 +6,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import styles from './LoginScreen.module.css';
 import { useCorruption } from '@/hooks/useCorruption';
 import { useCorruptedCursor } from '@/hooks/useCorruptedCursor';
+import SafeToCloseScreen from '@/components/DesktopOS/SafeToCloseScreen';
 
 // ─── Secret credentials ──────────────────────────────────────────────────────
 // The player discovers these by reading corrupted files deep in the OS.
@@ -115,6 +116,12 @@ export default function LoginScreen({ onLogin, onTurnOff }: Props) {
     const stored = localStorage.getItem('xp_username');
     if (!stored) setShowNamePrompt(true);
   }, []);
+
+  useEffect(() => {
+    if (!isShuttingDown) return;
+    document.body.style.cursor = 'none';
+    return () => { document.body.style.cursor = ''; };
+  }, [isShuttingDown]);
 
   // ── Tile selection ──────────────────────────────────────────────────────────
   const selectTile = (tile: UserTile) => {
@@ -342,10 +349,16 @@ export default function LoginScreen({ onLogin, onTurnOff }: Props) {
       )}
 
       {/* Fallback for browsers that block window.close() */}
-      {crtDone && (
-        <div className={styles.safeToClose}>
-          <p className={styles.safeText}>It is now safe to close this window.</p>
-        </div>
+      <SafeToCloseScreen active={crtDone} />
+
+      {isShuttingDown && (
+        <div style={{
+          position:      'fixed',
+          inset:         0,
+          zIndex:        9998,
+          cursor:        'none',
+          pointerEvents: 'none',
+        }} />
       )}
 
       {showNamePrompt && (

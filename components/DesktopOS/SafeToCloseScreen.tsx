@@ -63,8 +63,16 @@ export default function SafeToCloseScreen({ active }: Props) {
   const [safeText,      setSafeText]      = useState(ORIGINAL_TEXT);
   const [safeCursorPos, setSafeCursorPos] = useState(ORIGINAL_TEXT.length);
   const [safeCursorVis, setSafeCursorVis] = useState(false);
+  const [textVisible,   setTextVisible]   = useState(false);
 
   useEffect(() => {
+    if (!active) return;
+    const id = requestAnimationFrame(() => setTextVisible(true));
+    return () => cancelAnimationFrame(id);
+  }, [active])
+
+  useEffect(() => {
+    
     if (!active) return;
 
     let cancelled = false;
@@ -138,7 +146,7 @@ export default function SafeToCloseScreen({ active }: Props) {
 
   return (
     <div className="safeToClose">
-      <p className="safeText">
+      <p className={['safeText', textVisible ? 'safeTextVisible' : ''].join(' ')}>
         {safeText.slice(0, safeCursorPos)}
         {safeCursorVis && (
           <span className="crt-cursor" aria-hidden>▋</span>

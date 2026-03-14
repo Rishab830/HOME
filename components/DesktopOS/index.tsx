@@ -290,6 +290,12 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
     if (speedTimer.current) clearInterval(speedTimer.current);
   }, []);
 
+  useEffect(() => {
+    if (!isShuttingDown) return;
+    document.body.style.cursor = 'none';
+    return () => { document.body.style.cursor = ''; };
+  }, [isShuttingDown]);
+
   const handlePossessionReach = useCallback(() => {
     if (possessionPhase.current === 'toStart') {
       // Arrived at start button — open menu
@@ -326,10 +332,10 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
     corruption:    corruptionLevel,
     onGifStart:    useCallback((src: string) => setGifCursorSrc(src), []),
     onGifEnd:      useCallback(() => setGifCursorSrc(null),           []),
-    gravityTarget,                   // ← ADD
-    gravitySpeed,                    // ← ADD
-    forceShow:     possessed,        // ← ADD — show cursor even below corruption 52
-    onReachTarget: handlePossessionReach,  // ← ADD
+    gravityTarget,
+    gravitySpeed,
+    forceShow:     possessed,
+    onReachTarget: handlePossessionReach,
   });
 
   // ── Window management helpers ───────────────────────────────────────
@@ -568,7 +574,6 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
     setShowStartMenu(false);
     setIsShuttingDown(true);
     setTimeout(() => {
-      setIsShuttingDown(false);  // stop the CRT animation
       setSafeToClose(true);      // show the black screen
       window.close();            // silently fails in most browsers — safe-to-close is the fallback
     }, 1800);
@@ -629,82 +634,80 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
   // ────────────────────────────────────────────────────────────────────
   return (
     <>
-      {!safeToClose && (
-        <div
-          className={[
-            styles.os,
-            isGlitching                    ? styles.glitching       : '',
-            corruptionLevel >= 78          ? styles.chromatic       : '',
-            cursorActive                   ? styles.corruptedCursor : '',
-            isShuttingDown                 ? 'crt-shutdown'         : '', 
-          ].join(' ')}
-          style={
-            gifCursorSrc
-              ? { cursor: `url(${gifCursorSrc}) 16 16, auto` }  // gif on real cursor best-effort
-              : undefined
-          }
-        >
-          {/* Desktop (wallpaper + icons) */}
-          <Desktop
-            corruptionLevel= {corruptionLevel}
-            onOpenApp=       {handleOpenApp}
-          />
+      <div
+        className={[
+          styles.os,
+          isGlitching                    ? styles.glitching       : '',
+          corruptionLevel >= 78          ? styles.chromatic       : '',
+          cursorActive                   ? styles.corruptedCursor : '',
+          isShuttingDown                 ? 'crt-shutdown'         : '', 
+        ].join(' ')}
+        style={
+          gifCursorSrc
+            ? { cursor: `url(${gifCursorSrc}) 16 16, auto` }  // gif on real cursor best-effort
+            : undefined
+        }
+      >
+        {/* Desktop (wallpaper + icons) */}
+        <Desktop
+          corruptionLevel= {corruptionLevel}
+          onOpenApp=       {handleOpenApp}
+        />
 
-          {/* Windows — rendered in z-order (last = topmost) */}
-          {windows.map(win => (
-            <Window
-              key=             {win.id}
-              config=          {win.config}
-              isActive=        {activeId === win.id}
-              isMinimized=     {win.minimized}
-              isMaximized=     {win.maximized}
-              forceFullscreen= {win.forceFullscreen}   // ← ADD
-              onFocus=         {() => focusWindow(win.id)}
-              onClose=         {() => handleCloseWindow(win.id)}
-              onMinimize=      {() => toggleMinimize(win.id)}
-              onMaximize=      {() => maximizeWindow(win.id)}
-            >
-              <AppContent
-                win=            {win}
-                corruptionLevel={corruptionLevel}
-                onOpenFile=     {handleOpenFile}
-                triggerOnce=    {triggerOnce}
-                deletedFiles=   {deletedFiles}
-                unlockedFiles=  {unlockedFiles}
-                onSnakeCrash=   {handleSnakeCrash}
-                onCmdGlitch=    {handleCmdGlitch}
-                onUnlockFile=   {handleUnlockFile}
-                onClose=        {closeWindow}
-              />
-            </Window>
-          ))}
-
-          {/* Taskbar */}
-          <Taskbar
-            windows={windows.map(w => ({
-              id:        w.id,
-              title:     w.config.title,
-              iconEmoji: w.config.iconEmoji,
-              minimized: w.minimized,
-            }))}
-            activeWindowId={activeId}
-            corruptionLevel={corruptionLevel}
-            isStartOpen={showStartMenu}
-            onWindowClick={handleTaskbarWindowClick}
-            onStartClick={() => setShowStartMenu(v => !v)}
-          />
-
-          {showStartMenu && (
-            <StartMenu
-              corruptionLevel= {corruptionLevel}
-              onClose=         {() => setShowStartMenu(false)}
-              onOpenApp=       {handleStartMenuApp}
-              onLogoff=        {onLogout}
-              onTurnOff={handleTurnOff}
+        {/* Windows — rendered in z-order (last = topmost) */}
+        {windows.map(win => (
+          <Window
+            key=             {win.id}
+            config=          {win.config}
+            isActive=        {activeId === win.id}
+            isMinimized=     {win.minimized}
+            isMaximized=     {win.maximized}
+            forceFullscreen= {win.forceFullscreen}   // ← ADD
+            onFocus=         {() => focusWindow(win.id)}
+            onClose=         {() => handleCloseWindow(win.id)}
+            onMinimize=      {() => toggleMinimize(win.id)}
+            onMaximize=      {() => maximizeWindow(win.id)}
+          >
+            <AppContent
+              win=            {win}
+              corruptionLevel={corruptionLevel}
+              onOpenFile=     {handleOpenFile}
+              triggerOnce=    {triggerOnce}
+              deletedFiles=   {deletedFiles}
+              unlockedFiles=  {unlockedFiles}
+              onSnakeCrash=   {handleSnakeCrash}
+              onCmdGlitch=    {handleCmdGlitch}
+              onUnlockFile=   {handleUnlockFile}
+              onClose=        {closeWindow}
             />
-          )}
-        </div>
-      )}
+          </Window>
+        ))}
+
+        {/* Taskbar */}
+        <Taskbar
+          windows={windows.map(w => ({
+            id:        w.id,
+            title:     w.config.title,
+            iconEmoji: w.config.iconEmoji,
+            minimized: w.minimized,
+          }))}
+          activeWindowId={activeId}
+          corruptionLevel={corruptionLevel}
+          isStartOpen={showStartMenu}
+          onWindowClick={handleTaskbarWindowClick}
+          onStartClick={() => setShowStartMenu(v => !v)}
+        />
+
+        {showStartMenu && (
+          <StartMenu
+            corruptionLevel= {corruptionLevel}
+            onClose=         {() => setShowStartMenu(false)}
+            onOpenApp=       {handleStartMenuApp}
+            onLogoff=        {onLogout}
+            onTurnOff={handleTurnOff}
+          />
+        )}
+      </div>
 
       <SafeToCloseScreen active={safeToClose} />
 
@@ -739,6 +742,16 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
       )}
 
       {showCmdGlitch && <GlitchOverlay />}
+
+      {isShuttingDown && (
+        <div style={{
+          position:      'fixed',
+          inset:         0,
+          zIndex:        9998,
+          cursor:        'none',
+          pointerEvents: 'none',
+        }} />
+      )}
     </>
   );
 }
