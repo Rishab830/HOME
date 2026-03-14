@@ -3,9 +3,11 @@
 import { useState, useEffect, useRef } from 'react';
 import styles from './Desktop.module.css';
 
+import { type DesktopAction, ACTION, explorerAction, notepadAction } from './actions';
+
 interface Props {
   corruptionLevel: number;
-  onOpenApp:       (action: string) => void;
+  onOpenApp: (action: DesktopAction) => void;   // ← was string
 }
 
 // ── Wallpaper ladder ──────────────────────────────────────────────────────────
@@ -25,21 +27,21 @@ const FADE_DURATION        = 30000; // 30s crossfade — imperceptibly slow
 interface DesktopIcon {
   label:   string;
   emoji:   string;
-  action:  string;
+  action:  DesktopAction;   // ← was string
   hidden?: boolean;
 }
 
 function buildDesktopIcons(corruption: number): DesktopIcon[] {
   const icons: DesktopIcon[] = [
-    { label: 'My Documents',     emoji: '📁', action: 'explorer:My Documents' },
-    { label: 'My Computer',      emoji: '🖥️', action: 'mycomputer'            },
-    { label: 'Recycle Bin',      emoji: '🗑️', action: 'explorer:Recycle Bin'  },
-    { label: 'Internet Explorer',emoji: '🌐', action: 'ie'                    },
-    { label: 'Minesweeper',      emoji: '💣', action: 'minesweeper'           },
-    { label: 'Snake', emoji: '🐍', action: 'snake' },
+    { label: 'My Documents',      emoji: '📁', action: explorerAction('My Documents') },
+    { label: 'My Computer',       emoji: '🖥️', action: ACTION.MY_COMPUTER             },
+    { label: 'Recycle Bin',       emoji: '🗑️', action: explorerAction('Recycle Bin')  },
+    { label: 'Internet Explorer', emoji: '🌐', action: ACTION.IE                       },
+    { label: 'Minesweeper',       emoji: '💣', action: ACTION.MINESWEEPER              },
+    { label: 'Snake',             emoji: '🐍', action: ACTION.SNAKE                    },
   ];
   if (corruption >= 50) {
-    icons.push({ label: 'system_log.txt', emoji: '📄', action: 'notepad:system_log.txt' });
+    icons.push({ label: 'system_log.txt', emoji: '📄', action: notepadAction('system_log.txt') });
   }
   return icons;
 }

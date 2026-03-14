@@ -3,6 +3,8 @@
 import { useEffect, useRef } from 'react';
 import styles from './StartMenu.module.css';
 
+import { ACTION, explorerAction, notepadAction } from './actions';
+
 interface LeftItem {
   icon:    string;
   label:   string;
@@ -11,6 +13,7 @@ interface LeftItem {
 }
 
 interface RightItem {
+  id?:        string;
   icon?:      string;
   label?:     string;
   sub?:       string;
@@ -20,27 +23,27 @@ interface RightItem {
 }
 
 const BASE_LEFT_ITEMS: LeftItem[] = [
-  { icon: '🌐', label: 'Internet',             sub: 'Internet Explorer',  action: 'ie'              },
-  { icon: '📧', label: 'E-mail',               sub: 'Outlook Express',    action: 'error:mail'      },
-  { icon: '⬛', label: 'Command Prompt',       sub: '',                   action: 'cmd'             },
-  { icon: '💬', label: 'MSN',                  sub: '',                   action: 'ie'              },
-  { icon: '🎵', label: 'Windows Media Player', sub: '',                   action: 'error:wmp'       },
-  { icon: '💬', label: 'Windows Messenger',    sub: '',                   action: 'error:msg'       },
-  { icon: '📝', label: 'Notepad',              sub: '',                   action: 'notepad:new'     },
-  { icon: '🖥️', label: 'Tour Windows XP',      sub: '',                   action: 'ie'              },
+  { icon: '🌐', label: 'Internet',              sub: 'Internet Explorer', action: ACTION.IE          },
+  { icon: '📧', label: 'E-mail',                sub: 'Outlook Express',   action: 'error:mail'       },
+  { icon: '⬛', label: 'Command Prompt',        sub: '',                  action: ACTION.CMD          },
+  { icon: '💬', label: 'MSN',                   sub: '',                  action: ACTION.IE           },
+  { icon: '🎵', label: 'Windows Media Player',  sub: '',                  action: 'error:wmp'        },
+  { icon: '💬', label: 'Windows Messenger',     sub: '',                  action: 'error:msg'        },
+  { icon: '📝', label: 'Notepad',               sub: '',                  action: notepadAction('new') },
+  { icon: '🖥️', label: 'Tour Windows XP',       sub: '',                  action: ACTION.IE           },
 ];
 
 const BASE_RIGHT_ITEMS: RightItem[] = [
-  { icon: '📁', label: 'My Documents',                   action: 'explorer:My Documents', arrow: false },
-  { icon: '📄', label: 'My Recent Documents',             action: 'explorer:My Documents', arrow: true  },
-  { icon: '🖼️', label: 'My Pictures',                    action: 'explorer:My Documents', arrow: false },
-  { icon: '🎵', label: 'My Music',                       action: 'explorer:My Documents', arrow: false },
-  { icon: '🖥️', label: 'My Computer',                    action: 'mycomputer',            arrow: false },
-  { separator: true },
+  { icon: '📁', label: 'My Documents',                    action: explorerAction('My Documents'), arrow: false },
+  { icon: '📄', label: 'My Recent Documents',              action: explorerAction('My Documents'), arrow: true  },
+  { icon: '🖼️', label: 'My Pictures',                     action: explorerAction('My Documents'), arrow: false },
+  { icon: '🎵', label: 'My Music',                        action: explorerAction('My Documents'), arrow: false },
+  { icon: '🖥️', label: 'My Computer',                     action: ACTION.MY_COMPUTER,             arrow: false },
+  { separator: true, id: 'sep-controls' },
   { icon: '⚙️', label: 'Control Panel',                  action: 'error:cp',              arrow: false },
   { icon: '🔧', label: 'Set Program Access and Defaults', action: 'error:cp',             arrow: false },
   { icon: '🖨️', label: 'Printers and Faxes',             action: 'error:cp',              arrow: false },
-  { separator: true },
+  { separator: true, id: 'sep-utils' },
   { icon: '❓', label: 'Help and Support',               action: 'error:help',            arrow: false },
   { icon: '🔍', label: 'Search',                         action: 'error:search',          arrow: false },
   { icon: '▶️', label: 'Run...',                         action: 'error:run',             arrow: false },
@@ -162,9 +165,9 @@ export default function StartMenu({
 
           {/* Pinned apps */}
           <div className={styles.pinnedSection}>
-            {leftItems.map((item, i) => (
+            {leftItems.map((item) => (
               <button
-                key={i}
+                key={item.label}
                 className={styles.leftItem}
                 onClick={() => handleAction(item.action)}
                 role="menuitem"
@@ -197,13 +200,13 @@ export default function StartMenu({
 
         {/* RIGHT COLUMN */}
         <div className={styles.right}>
-          {rightItems.map((item, i) => {
+          {rightItems.map((item) => {
             if (item.separator) {
-              return <div key={i} className={styles.rightSep} role="separator" />;
+              return <div key={item.id} className={styles.rightSep} role="separator" />;
             }
             return (
               <button
-                key={i}
+                key={item.label}
                 className={[
                   styles.rightItem,
                   item.label === 'Exit' ? styles.exitItem : '',

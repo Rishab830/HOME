@@ -4,6 +4,8 @@ import {
   useState, useEffect, useCallback, useRef,
 } from 'react';
 
+import { type DesktopAction, ACTION, explorerAction, notepadAction } from './actions';
+
 import styles          from './DesktopOS.module.css';
 import Window, { WindowConfig } from './Window';
 import Desktop         from './Desktop';
@@ -74,19 +76,56 @@ const SAFE_SCRIPT: ScriptOp[] = [
   { op: 'removeCursor'                   },
 ];
 
-// ─── Types ───────────────────────────────────────────────────────────────────
-type AppType = 'notepad' | 'explorer' | 'error' | 'image' | 'minesweeper' | 'snake' | 'cmd';
+// ─── Per-app prop shapes ──────────────────────────────────────────────────────
+export interface NotepadProps {
+  filename:          string;
+  instanceId:        string;
+  baseContent:       string;
+  corruptionAppends: CorruptionAppend[];
+}
+export interface ExplorerProps {
+  initialPath: string[];
+}
+export interface ErrorProps {
+  message: string;
+}
+export interface ImageProps {
+  src:      string;
+  filename: string;
+}
+export interface MinesweeperProps { [key: string]: never }
+export interface SnakeProps       { [key: string]: never }
+export interface CmdProps         { [key: string]: never }
 
-interface OpenWindow {
-  id:         string;
-  config:     WindowConfig;
-  appType:    AppType;
-  appProps:   Record<string, unknown>;
-  minimized:  boolean;
-  maximized:     boolean;        // ← ADD
-  closeAttempts: number;         // ← ADD
+// Map from discriminant literal → its props type
+// Used to make openWindow() generic without repetition
+export type AppPropsMap = {
+  notepad:     NotepadProps;
+  explorer:    ExplorerProps;
+  error:       ErrorProps;
+  image:       ImageProps;
+  minesweeper: MinesweeperProps;
+  snake:       SnakeProps;
+  cmd:         CmdProps;
+};
+
+export type AppType = keyof AppPropsMap;
+
+// ─── Shared window fields (everything except the discriminant pair) ───────────
+interface WindowBase {
+  id:              string;
+  config:          WindowConfig;
+  minimized:       boolean;
+  maximized:       boolean;
+  closeAttempts:   number;
   forceFullscreen: boolean;
 }
+
+// Discriminated union — appType narrows appProps automatically
+type OpenWindow = {
+  [K in AppType]: WindowBase & { appType: K; appProps: AppPropsMap[K] }
+}[AppType];
+
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 let _windowCounter = 0;
@@ -326,15 +365,15 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
   });
 
   // ── Window management helpers ───────────────────────────────────────
-  const openWindow = useCallback((
-    appType:  AppType,
+  const openWindow = useCallback(<T extends AppType>(
+    appType:  T,
     config:   Omit<WindowConfig, 'id'>,
-    appProps: Record<string, unknown>,
+    appProps: AppPropsMap[T],
   ) => {
     const id: string = makeId();
-    // Cascade position slightly for each new window
     const offset = (windows.length % 8) * 22;
-    const newWindow: OpenWindow = {
+
+    const newWindow = {
       id,
       config: {
         ...config,
@@ -346,11 +385,12 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
       },
       appType,
       appProps,
-      minimized: false,
-      maximized:     false,      // ← ADD
-      closeAttempts: 0,          // ← ADD
+      minimized:       false,
+      maximized:       false,
+      closeAttempts:   0,
       forceFullscreen: false,
-    };
+    } satisfies WindowBase & { appType: T; appProps: AppPropsMap[T] } as OpenWindow;
+
     setWindows(prev => [...prev, newWindow]);
     setActiveId(id);
   }, [windows.length]);
@@ -379,7 +419,7 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
     if (!win) return;
 
     // Special behaviour for beach_007.jpg
-    if (win.appProps.filename === 'beach_007.jpg' || win.appProps.src?.toString().includes('beach_007')) {
+    if (win.appType === 'image' && (win.appProps.filename === 'beach_007.jpg' || win.appProps.src.includes('beach_007'))) {
       if (win.closeAttempts === 0) {
         setWindows(prev => prev.map(w =>
           w.id === id
@@ -462,7 +502,7 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
   }, []);
 
   // ── Desktop icon / action routing ───────────────────────────────────
-  const handleOpenApp = useCallback((action: string) => {
+  const handleOpenApp = useCallback((action: DesktopAction) => {
     // explorer:FolderName
     if (action.startsWith('explorer:')) {
       const folderName = action.replace('explorer:', '');
@@ -475,7 +515,7 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
       return;
     }
 
-    if (action === 'notepad:new') {
+    if (action === notepadAction('new')) {
       const id = makeId();
       openWindow('notepad', {
         title:       'Untitled - Notepad',
@@ -490,7 +530,7 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
       return;
     }
 
-    if (action === 'ie') {
+    if (action === ACTION.IE) {
       openWindow('error', {
         title:     'Internet Explorer',
         iconEmoji: '🌐',
@@ -503,7 +543,7 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
       return;
     }
 
-    if (action === 'mycomputer') {
+    if (action === ACTION.MY_COMPUTER) {
       openWindow('explorer', {
         title:     'My Computer',
         iconEmoji: '🖥️',
@@ -511,7 +551,7 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
       }, { initialPath: [] });
     }
 
-    if (action === 'minesweeper') {
+    if (action === ACTION.MINESWEEPER) {
       openWindow('minesweeper', {
         title:       'Minesweeper',
         iconEmoji:   '💣',
@@ -520,7 +560,7 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
       return;
     }
 
-    if (action === 'snake') {
+    if (action === ACTION.SNAKE) {
       openWindow('snake', {
         title:       'Snake',
         iconEmoji:   '🐍',
@@ -529,7 +569,7 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
       return;
     }
     
-    if (action === 'cmd') {
+    if (action === ACTION.CMD) {
       openWindow('cmd', {
         title:       'C:\\  Command Prompt',
         iconEmoji:   '⬛',
@@ -544,14 +584,16 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
     if (action.startsWith('_error:')) {
       const message = action.replace('_error:', '');
       openWindow('error', {
-        title:       'System Error',
-        iconEmoji:   '⚠️',
+        title:           'System Error',
+        iconEmoji:       '⚠️',
         initialSize:     { width: 380, height: 200 },
         initialPosition: { x: 300, y: 200 },
       }, { message });
       return;
     }
-    handleOpenApp(action);
+    // All non-_error: actions from StartMenu are valid DesktopActions;
+    // the _error: prefix is an internal-only convention not in the public type.
+    handleOpenApp(action as DesktopAction);
   }, [handleOpenApp, openWindow]);
 
   const handleTurnOff = useCallback(() => {
@@ -692,69 +734,58 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
       case 'notepad':
         return (
           <Notepad
-            filename=         {win.appProps.filename as string}
-            instanceId=       {win.appProps.instanceId as string}
+            filename=         {win.appProps.filename}
+            instanceId=       {win.appProps.instanceId}
             corruptionLevel=  {corruptionLevel}
-            baseContent=      {win.appProps.baseContent as string}
-            corruptionAppends={(win.appProps.corruptionAppends as CorruptionAppend[]) ?? []}
+            baseContent=      {win.appProps.baseContent}
+            corruptionAppends={win.appProps.corruptionAppends}
           />
         );
 
       case 'explorer':
         return (
           <FileExplorer
-            initialPath=    {win.appProps.initialPath as string[]}
+            initialPath=    {win.appProps.initialPath}
             corruptionLevel={corruptionLevel}
             onOpenFile=     {handleOpenFile}
-            triggerOnce=    {triggerOnce}               // ← was incrementCorruption
-            deletedFiles=    {deletedFiles}
-            unlockedFiles=   {unlockedFiles} 
+            triggerOnce=    {triggerOnce}
+            deletedFiles=   {deletedFiles}
+            unlockedFiles=  {unlockedFiles}
           />
         );
 
       case 'error':
         return (
           <ErrorDialog
-            message=         {win.appProps.message as string}
-            corruptionLevel= {corruptionLevel}
-            onClose=         {() => closeWindow(win.id)}
+            message=        {win.appProps.message}
+            corruptionLevel={corruptionLevel}
+            onClose=        {() => closeWindow(win.id)}
           />
         );
 
       case 'image':
         return (
           <ImageViewer
-            src=     {win.appProps.src      as string}
-            filename={win.appProps.filename as string}
+            src=     {win.appProps.src}
+            filename={win.appProps.filename}
           />
         );
 
       case 'minesweeper':
-        return (
-          <Minesweeper
-            triggerOnce=  {triggerOnce}
-            onUnlockFile= {handleUnlockFile}
-          />
-        );
+        return <Minesweeper triggerOnce={triggerOnce} onUnlockFile={handleUnlockFile} />;
 
       case 'snake':
-        return (
-          <Snake
-            triggerOnce=  {triggerOnce}
-            onUnlockFile= {handleUnlockFile}
-            onCrash=      {handleSnakeCrash}   // ← ADD
-          />
-        );
+        return <Snake triggerOnce={triggerOnce} onUnlockFile={handleUnlockFile} onCrash={handleSnakeCrash} />;
 
       case 'cmd':
         return (
           <CommandPrompt
-            corruptionLevel= {corruptionLevel}
-            triggerOnce=     {triggerOnce}
-            onUnlockFile=    {handleUnlockFile}
-            onGlitch=        {handleCmdGlitch}
-            unlockedFiles=   {unlockedFiles}   // ← ADD
-            onExit=          {() => closeWindow(win.id)}
+            corruptionLevel={corruptionLevel}
+            triggerOnce=    {triggerOnce}
+            onUnlockFile=   {handleUnlockFile}
+            onGlitch=       {handleCmdGlitch}
+            unlockedFiles=  {unlockedFiles}
+            onExit=         {() => closeWindow(win.id)}
           />
         );
 
