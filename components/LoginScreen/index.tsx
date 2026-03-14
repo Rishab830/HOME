@@ -73,7 +73,7 @@ export default function LoginScreen({ onLogin, onTurnOff }: Props) {
   const passwordRef = useRef<HTMLInputElement>(null);
   const [gifCursorSrc, setGifCursorSrc] = useState<string | null>(null);
 
-  const cursorActive = corruptionLevel >= 0;
+  const cursorActive = true;
   useCorruptedCursor({
     active:     cursorActive,
     corruption: corruptionLevel,

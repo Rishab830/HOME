@@ -5,7 +5,7 @@ import { useEffect, useRef, useCallback } from 'react';
 const XP_CURSOR     = '/cursors/windows_xp_pointer.png';
 const CLICKER_CURSOR = '/cursors/windows_xp_clicker.png';
 const CURSOR_W    = 16;
-const CURSOR_H    = 16;
+const CURSOR_H    = 32;
 
 const HORROR_GIFS = [
   '/cursors/Eye.gif',
@@ -18,7 +18,7 @@ const CLICKABLE_TAGS = new Set(['A', 'BUTTON', 'INPUT', 'SELECT', 'TEXTAREA', 'L
 function gifInterval(corruption: number): number {
   if (corruption >= 90) return 5_000;
   if (corruption >= 75) return 10_000;
-  if (corruption >= 60) return 18_000;
+  if (corruption >= 52) return 18_000;
   return Infinity;             // no gifs below 60
 }
 
@@ -157,9 +157,6 @@ export function useCorruptedCursor({ active, corruption, onGifStart, onGifEnd, g
     };
     document.addEventListener('mouseover', onOver);
 
-    // ADD to the cleanup return alongside removeEventListener('mousemove'):
-    document.removeEventListener('mouseover', onOver);
-
     // Lerp loop — speed drops as corruption rises
     const lerp = () => {
       const gt = gravityTargetRef.current;
@@ -178,8 +175,11 @@ export function useCorruptedCursor({ active, corruption, onGifStart, onGifEnd, g
           onReachRef.current?.();
         }
       } else {
-        // Normal lag mode
-        const spd = Math.max(0.04, 0.38 - (corruption / 100) * 0.32);
+        // Below 52: ghost cursor snaps instantly — no visible lag
+        // At 52+: lag progressively worsens, bottoming out at 0.04 by corruption 100
+        const spd = corruption < 52
+          ? 1.0
+          : Math.max(0.04, 0.38 - ((corruption - 52) / 48) * 0.34);
         velRef.current.x += (posRef.current.x - velRef.current.x) * spd;
         velRef.current.y += (posRef.current.y - velRef.current.y) * spd;
       }
@@ -197,6 +197,7 @@ export function useCorruptedCursor({ active, corruption, onGifStart, onGifEnd, g
 
     return () => {
       document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseover', onOver);
       cancelAnimationFrame(rafRef.current);
       clearGifTimers();
       img.remove();

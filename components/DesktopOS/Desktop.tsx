@@ -20,7 +20,7 @@ function getWallpaper(corruption: number): string {
 // Corruption levels that trigger the jumpscare flash
 const JUMPSCARE_THRESHOLDS = [40, 68, 88];
 const JUMPSCARE_DURATION   = 160;   // ms the broken screen is visible
-const FADE_DURATION        = 30000; // 60s crossfade — imperceptibly slow
+const FADE_DURATION        = 30000; // 30s crossfade — imperceptibly slow
 
 interface DesktopIcon {
   label:   string;
@@ -50,9 +50,12 @@ export default function Desktop({ corruptionLevel, onOpenApp }: Props) {
   const [stableWall,  setStableWall]  = useState(currentWall);   // ← holds OLD image during fade
   const [fadingWall,  setFadingWall]  = useState<string | null>(null);
   const [fadeOpacity, setFadeOpacity] = useState(0);
+
   const prevWallRef   = useRef(currentWall);
   const fadeTimer     = useRef<ReturnType<typeof setTimeout> | null>(null);
   const promoteTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const jumpscareOuterTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const jumpscareInnerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (currentWall === prevWallRef.current) return;
@@ -98,16 +101,23 @@ export default function Desktop({ corruptionLevel, onOpenApp }: Props) {
       ) {
         firedThresholds.current.push(threshold);
 
-        // Short random delay so it doesn't fire exactly when a file opens
         const delay = 600 + Math.random() * 1200;
-        setTimeout(() => {
+        jumpscareOuterTimer.current = setTimeout(() => {
           setShowJumpscare(true);
-          setTimeout(() => setShowJumpscare(false), JUMPSCARE_DURATION);
+          jumpscareInnerTimer.current = setTimeout(
+            () => setShowJumpscare(false),
+            JUMPSCARE_DURATION
+          );
         }, delay);
 
         break;
       }
     }
+
+    return () => {
+      if (jumpscareOuterTimer.current) clearTimeout(jumpscareOuterTimer.current);
+      if (jumpscareInnerTimer.current) clearTimeout(jumpscareInnerTimer.current);
+    };
   }, [corruptionLevel]);
 
   // ── Icons ──────────────────────────────────────────────────────────

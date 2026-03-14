@@ -52,6 +52,7 @@ body {
   align-items: center;
   justify-content: center;
   animation: fadeIn 2.5s ease-in forwards;
+  cursor: none;
 }
 
 .safeText {

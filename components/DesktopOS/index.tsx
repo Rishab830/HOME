@@ -105,23 +105,28 @@ function GlitchOverlay() {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx    = canvas.getContext('2d');
-    if (!ctx)    return;
-
-    canvas.width  = window.innerWidth;
-    canvas.height = window.innerHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
     const CW    = 12;
     const CH    = 16;
     const CHARS = '█▓▒░╬╫╪═║╔╗╚╝@#$%&?~01░▒▓';
-    const COLS  = Math.ceil(canvas.width  / CW);
-    const ROWS  = Math.ceil(canvas.height / CH);
+
+    let COLS = 0;
+    let ROWS = 0;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    const resize = () => {
+      canvas.width  = window.innerWidth;
+      canvas.height = window.innerHeight;
+      COLS = Math.ceil(canvas.width  / CW);
+      ROWS = Math.ceil(canvas.height / CH);
+    };
 
     const draw = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.fillStyle = 'rgba(0,0,0,0.88)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-
       ctx.font = `${CH - 2}px "Courier New", monospace`;
 
       for (let r = 0; r < ROWS; r++) {
@@ -144,8 +149,18 @@ function GlitchOverlay() {
       }
     };
 
-    const id = setInterval(draw, 50);
-    return () => clearInterval(id);
+    // Set initial size, then start drawing
+    resize();
+    intervalId = setInterval(draw, 50);
+
+    // Keep canvas dimensions in sync with window
+    const observer = new ResizeObserver(resize);
+    observer.observe(document.body);
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+      observer.disconnect();
+    };
   }, []);
 
   return (
@@ -297,8 +312,8 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
     }
   }, [onLogout]);
 
-  // Cursor lag kicks in at corruption >= 52
-  const cursorActive = corruptionLevel >= 0 ;
+  // Ghost cursor is always visible; lag and gif effects are gated inside the hook at >= 52
+  const cursorActive = true;
   useCorruptedCursor({
     active:        cursorActive,
     corruption:    corruptionLevel,
@@ -439,7 +454,7 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
       baseContent:       file.baseContent,
       corruptionAppends: file.corruptionAppends ?? [],
     });
-  }, [corruptionLevel, incrementCorruption, openWindow]);  // ← ADD THIS LINE
+  }, [triggerOnce, openWindow]);  // ← ADD THIS LINE
 
   const handleCmdGlitch = useCallback((ms: number) => {
     setShowCmdGlitch(true);
@@ -818,11 +833,11 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
       )}
 
       {safeToClose && (
-        <div className={styles.safeToClose}>
-          <p className={styles.safeText}>
+        <div className="safeToClose">
+          <p className="safeText">
             {safeText.slice(0, safeCursorPos)}
             {safeCursorVis && (
-              <span className={styles.crtCursor} aria-hidden>▋</span>
+              <span className="crt-cursor" aria-hidden>▋</span>
             )}
             {safeText.slice(safeCursorPos)}
           </p>
