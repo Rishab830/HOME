@@ -24,6 +24,7 @@ import { useCorruption }    from '@/hooks/useCorruption';
 import { useHorrorEvents }  from './horror/useHorrorEvents';
 import { FSFile, type CorruptionAppend } from './horror/filesystem';
 import { useCorruptedCursor } from '@/hooks/useCorruptedCursor';
+import { usePossession }      from '@/hooks/usePossession';
 import StartMenu from './StartMenu';
 
 const JUMPSCARE_DURATION = 1000;
@@ -195,12 +196,6 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
   const [crashBlocked,    setCrashBlocked]    = useState(false);
   const [showCrashScare,  setShowCrashScare]  = useState(false);
   const crashAudioRef = useRef<HTMLAudioElement | null>(null);
-  const [possessed,     setPossessed]     = useState(false);
-  const [gravityTarget, setGravityTarget] = useState<{ x: number; y: number } | null>(null);
-  const [gravitySpeed,  setGravitySpeed]  = useState(0);
-  const possessionPhase = useRef<'idle' | 'toStart' | 'toLogoff'>('idle');
-  const sessionStart    = useRef(Date.now());
-  const speedTimer      = useRef<ReturnType<typeof setInterval> | null>(null);
   const [showCmdGlitch, setShowCmdGlitch] = useState(false);
 
   const [deletedFiles, setDeletedFiles] = useState<Set<string>>(() => {
@@ -222,6 +217,17 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
     windowCounterRef.current += 1;
     return `wnd_${windowCounterRef.current}_${Date.now()}`;
   }, []);
+
+  const openStartMenu = useCallback(() => {
+    setShowStartMenu(true);
+  }, []);
+
+  const focusLogoffButton = useCallback(() => {
+    // If you need any extra logic when the logoff button is targeted,
+    // put it here; for now it's a no-op.
+  }, []);
+
+  const { possessed, gravityTarget, gravitySpeed, handlePossessionReach, } = usePossession({ onLogout, onOpenStartMenu: openStartMenu, onFocusLogoff: focusLogoffButton, });
 
   const handleSnakeCrash = useCallback(() => {
     setCrashBlocked(true);
@@ -263,67 +269,10 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
   }, []);
 
   useEffect(() => {
-    const id = setInterval(() => {
-      const elapsed = (Date.now() - sessionStart.current) / 1000;
-      if (elapsed < 300 || possessionPhase.current !== 'idle') return;
-
-      // 2 minutes elapsed — begin possession
-      const startBtn = document.querySelector<HTMLElement>('[data-possession="start"]');
-      if (!startBtn) return;
-
-      possessionPhase.current = 'toStart';
-      setPossessed(true);
-      const r = startBtn.getBoundingClientRect();
-      setGravityTarget({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
-      setGravitySpeed(0.008);
-
-      // Speed ramp — gets faster every 10s
-      speedTimer.current = setInterval(() => {
-        setGravitySpeed(s => Math.min(0.55, s + 0.022));
-      }, 10_000);
-    }, 1000);
-
-    return () => clearInterval(id);
-  }, []);
-
-  useEffect(() => () => {
-    if (speedTimer.current) clearInterval(speedTimer.current);
-  }, []);
-
-  useEffect(() => {
     if (!isShuttingDown) return;
     document.body.style.cursor = 'none';
     return () => { document.body.style.cursor = ''; };
   }, [isShuttingDown]);
-
-  const handlePossessionReach = useCallback(() => {
-    if (possessionPhase.current === 'toStart') {
-      // Arrived at start button — open menu
-      possessionPhase.current = 'toLogoff';
-      setGravitySpeed(0.25);    // fast for second leg
-      setShowStartMenu(true);
-
-      // Wait one frame for StartMenu to mount, then target logoff
-      setTimeout(() => {
-        const logoffBtn = document.querySelector<HTMLElement>('[data-possession="logoff"]');
-        if (!logoffBtn) return;
-        const r = logoffBtn.getBoundingClientRect();
-        setGravityTarget({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
-      }, 300);
-      return;
-    }
-
-    if (possessionPhase.current === 'toLogoff') {
-      // Arrived at logoff — clean up and log out
-      possessionPhase.current = 'idle';
-      if (speedTimer.current) clearInterval(speedTimer.current);
-      setGravityTarget(null);
-      setGravitySpeed(0);
-      setPossessed(false);
-      setShowStartMenu(false);
-      setTimeout(() => onLogout(), 400);   // brief pause before transition
-    }
-  }, [onLogout]);
 
   // Ghost cursor is always visible; lag and gif effects are gated inside the hook at >= 52
   const cursorActive = true;
@@ -529,7 +478,7 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
       openWindow('minesweeper', {
         title:       'Minesweeper',
         iconEmoji:   '💣',
-        initialSize: { width: 260, height: 380 },
+        initialSize: { width: 260, height: 400 },
       }, {});
       return;
     }

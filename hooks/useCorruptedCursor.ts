@@ -67,7 +67,9 @@ export function useCorruptedCursor({ active, corruption, onGifStart, onGifEnd, g
 
   useEffect(() => {
     gravityTargetRef.current = gravityTarget ?? null;
-    reachedRef.current = false;   // reset reached flag on each new target
+    if (gravityTarget !== null) {
+      reachedRef.current = false;
+    }
   }, [gravityTarget]);
   useEffect(() => { gravitySpeedRef.current = gravitySpeed ?? 0; }, [gravitySpeed]);
   useEffect(() => { onReachRef.current = onReachTarget; },         [onReachTarget]);
