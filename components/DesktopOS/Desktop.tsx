@@ -92,7 +92,7 @@ function buildDesktopIcons(corruption: number, recycleHasItems: boolean): Deskto
         ? '/icons/recycle_bin_full_icon.png'
         : '/icons/recycle_bin_empty_icon.png',
     },
-    { label: 'Internet Explorer', emoji: '🌐', action: ACTION.IE, iconSrc: '/icons/Earth%20(fixed).ico' },
+    { label: 'Internet Explorer', emoji: '🌐', action: ACTION.IE, iconSrc: '/icons/internet_explorer_icon.png' },
     { label: 'Minesweeper',       emoji: '💣', action: ACTION.MINESWEEPER, iconSrc: '/icons/Minesweeper.ico' },
     { label: 'Snake',             emoji: '🐍', action: ACTION.SNAKE, iconSrc: '/icons/snake_icon.png' },
     { label: 'Camera',            emoji: '📷', action: ACTION.CAMERA, iconSrc: '/icons/Camera.ico' },
