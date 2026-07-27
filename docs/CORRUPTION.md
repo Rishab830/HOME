@@ -1,6 +1,6 @@
 # Corruption System Reference
 
-_Generated 2026-07-27T07:25:49.364Z by `npm run docs:corruption`._
+_Generated 2026-07-27T07:33:39.753Z by `npm run docs:corruption`._
 
 Run `npm run docs:corruption:watch` while editing corruption logic to keep this file updated live. The watcher monitors the source files listed in the appendix and rewrites this markdown whenever they change.
 
