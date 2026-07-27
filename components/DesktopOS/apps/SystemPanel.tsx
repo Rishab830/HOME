@@ -46,7 +46,10 @@ function storageUsage(): number {
 export default function SystemPanel({ kind }: Props) {
   const [cameraStatus, setCameraStatus] = useState('Camera permission has not been requested.');
   const [streamActive, setStreamActive] = useState(false);
+  const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [storage, setStorage] = useState({ usage: storageUsage(), quota: 64 * 1024 * 1024 });
   const [pinballScore, setPinballScore] = useState(0);
   const [soundOn, setSoundOn] = useState(true);
@@ -67,6 +70,11 @@ export default function SystemPanel({ kind }: Props) {
     streamRef.current?.getTracks().forEach(track => track.stop());
   }, []);
 
+  useEffect(() => {
+    if (kind !== 'camera' || !videoRef.current || !streamRef.current) return;
+    videoRef.current.srcObject = streamRef.current;
+  }, [kind, streamActive]);
+
   const requestCamera = async () => {
     if (!navigator.mediaDevices?.getUserMedia) {
       setCameraStatus('No webcam device interface is available.');
@@ -84,15 +92,58 @@ export default function SystemPanel({ kind }: Props) {
     }
   };
 
+  const capturePhoto = () => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+
+    if (!video || !canvas || !streamActive || video.videoWidth === 0 || video.videoHeight === 0) {
+      setCameraStatus('Camera preview is not ready yet.');
+      return;
+    }
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      setCameraStatus('Unable to capture picture from this device.');
+      return;
+    }
+
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    setCapturedPhoto(canvas.toDataURL('image/png'));
+    setCameraStatus('Picture captured.');
+  };
+
   const cards = useMemo(() => ['A', '2', '3', '4', '5', '6', '7', '8'], []);
 
   if (kind === 'camera') {
     return (
       <div className={styles.panelWrap}>
         <div className={styles.panelHeader}>Camera and Scanner Wizard</div>
-        <div className={styles.cameraPreview}>{streamActive ? 'DEVICE ACTIVE' : 'NO PREVIEW'}</div>
+        <div className={styles.cameraPreview}>
+          <video
+            ref={videoRef}
+            className={streamActive ? styles.cameraVideo : styles.cameraVideoHidden}
+            autoPlay
+            muted
+            playsInline
+          />
+          {!streamActive && <span>NO PREVIEW</span>}
+        </div>
+        <canvas ref={canvasRef} className={styles.hiddenCanvas} aria-hidden />
         <p className={styles.panelText}>{cameraStatus}</p>
-        <button className={styles.xpBtn} onClick={requestCamera}>Request Camera Permission</button>
+        <div className={styles.panelActions}>
+          <button className={styles.xpBtn} onClick={requestCamera}>Request Camera Permission</button>
+          <button className={styles.xpBtn} onClick={capturePhoto} disabled={!streamActive}>Click Picture</button>
+        </div>
+        {capturedPhoto && (
+          <div
+            className={styles.cameraSnapshot}
+            style={{ backgroundImage: `url(${capturedPhoto})` }}
+            role="img"
+            aria-label="Captured camera picture"
+          />
+        )}
       </div>
     );
   }

@@ -632,6 +632,7 @@
 .cameraPreview {
   height: 150px;
   margin-bottom: 10px;
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -641,6 +642,42 @@
   border-color: #808080 #ffffff #ffffff #808080;
   font-family: 'Courier New', monospace;
   letter-spacing: 1px;
+  overflow: hidden;
+}
+
+.cameraVideo,
+.cameraVideoHidden {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.cameraVideoHidden {
+  display: none;
+}
+
+.hiddenCanvas {
+  display: none;
+}
+
+.panelActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.cameraSnapshot {
+  width: 132px;
+  height: 96px;
+  margin-top: 10px;
+  background-color: #111;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  border: 2px solid;
+  border-color: #808080 #ffffff #ffffff #808080;
 }
 
 .driveIcon {
