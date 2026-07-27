@@ -31,10 +31,16 @@
   position: absolute;
   top: 10px;
   left: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  align-items: flex-start;
+  bottom: 10px;
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(auto-fill, 78px);
+  grid-auto-columns: 78px;
+  gap: 6px 8px;
+  align-content: start;
+  justify-content: start;
+  align-items: start;
+  justify-items: center;
   z-index: 45;
 }
 
@@ -72,6 +78,10 @@
 }
 .largeIcons .icon {
   width: 88px;
+}
+.largeIcons {
+  grid-template-rows: repeat(auto-fill, 94px);
+  grid-auto-columns: 94px;
 }
 .largeIcons .iconEmoji {
   font-size: 42px;
