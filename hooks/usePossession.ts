@@ -3,7 +3,14 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 
+declare global {
+  interface Window {
+    triggerPossession?: () => void;
+  }
+}
+
 interface PossessionOptions {
+  active?:          boolean;
   onLogout:        () => void;
   onOpenStartMenu: () => void;
   onFocusLogoff:   () => void;
@@ -17,6 +24,7 @@ interface PossessionState {
 }
 
 export function usePossession({
+  active = true,
   onLogout,
   onOpenStartMenu,
   onFocusLogoff,
@@ -31,6 +39,7 @@ export function usePossession({
   const gravityTargetRef = useRef<{ x: number; y: number } | null>(null);
   
   const triggerNow = useCallback(() => {
+    if (!active) return;
     const startBtn = document.querySelector<HTMLElement>('[data-possession="start"]');
     if (!startBtn) return;
 
@@ -44,13 +53,13 @@ export function usePossession({
     speedTimer.current = setInterval(() => {
       setGravitySpeed(s => Math.min(0.55, s + 0.022));
     }, 10_000);
-  }, []);
+  }, [active]);
 
   useEffect(() => {
-    (window as any).triggerPossession = triggerNow;
+    window.triggerPossession = triggerNow;
     return () => {
-      if ((window as any).triggerPossession === triggerNow) {
-        delete (window as any).triggerPossession;
+      if (window.triggerPossession === triggerNow) {
+        delete window.triggerPossession;
       }
     };
   }, [triggerNow]);
@@ -59,6 +68,7 @@ export function usePossession({
   useEffect(() => {
     const id = setInterval(() => {
       const elapsed = (Date.now() - sessionStart.current) / 1000;
+      if (!active) return;
       if (elapsed < 300 || possessionPhase.current !== 'idle') return;
 
       const startBtn = document.querySelector<HTMLElement>('[data-possession="start"]');
@@ -77,7 +87,7 @@ export function usePossession({
     }, 1000);
 
     return () => clearInterval(id);
-  }, []);
+  }, [active]);
 
   // Cleanup speed timer on unmount
   useEffect(() => () => {

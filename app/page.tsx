@@ -3,6 +3,7 @@ import { useState, useCallback } from 'react';
 import LoginScreen from '@/components/LoginScreen';
 import DesktopOS from '@/components/DesktopOS';         // your next component
 import LogoffOverlay from '@/components/LogoffOverlay';   // ← ADD
+import AdminPartition from '@/components/AdminPartition';
 
 type Scene = 'login' | 'desktop' | 'secret';
 
@@ -38,19 +39,7 @@ export default function Page() {
       )}
 
       {scene === 'secret' && (
-        <div style={{
-          width: '100vw',
-          height: '100vh',
-          background: '#000',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontFamily: 'Courier New, monospace',
-          color: '#fff',
-          fontSize: '18px',
-        }}>
-          ADMINISTRATOR PARTITION — [placeholder]
-        </div>
+        <AdminPartition onReturnToLogin={() => setScene('login')} />
       )}
 
       {/* Overlays render above everything */}

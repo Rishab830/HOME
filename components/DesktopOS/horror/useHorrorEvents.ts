@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 
 export type HorrorEventType =
   | 'open_notepad'
@@ -13,6 +13,8 @@ export interface HorrorEvent {
 interface Options {
   corruptionLevel: number;
   onEvent: (e: HorrorEvent) => void;
+  popupOpen?: boolean;
+  visibilityPopupChance?: number;
 }
 
 const PASSIVE_MESSAGES = [
@@ -50,9 +52,17 @@ function getDelay(corruption: number): number {
   return 8_000 + Math.random() * 12_000;                           // 8–20 sec
 }
 
-export function useHorrorEvents({ corruptionLevel, onEvent }: Options) {
+export function useHorrorEvents({
+  corruptionLevel,
+  onEvent,
+  popupOpen = false,
+  visibilityPopupChance = 0.35,
+}: Options) {
   const onEventRef = useRef(onEvent);
+  const popupOpenRef = useRef(popupOpen);
+  const wasAwayRef = useRef(false);
   onEventRef.current = onEvent;
+  popupOpenRef.current = popupOpen;
 
   // ── Timed random events ─────────────────────────────────────────────
   useEffect(() => {
@@ -67,7 +77,9 @@ export function useHorrorEvents({ corruptionLevel, onEvent }: Options) {
       timeoutId = setTimeout(() => {
         // Alternate between error dialogs and notepad messages
         const roll = Math.random();
-        if (roll < 0.4 && corruptionLevel >= 30) {
+        if (popupOpenRef.current) {
+          onEventRef.current({ type: 'screen_glitch' });
+        } else if (roll < 0.4 && corruptionLevel >= 30) {
           onEventRef.current({ type: 'open_error',   payload: { message: pickMessage(corruptionLevel) } });
         } else if (roll < 0.7) {
           onEventRef.current({ type: 'open_notepad', payload: { content: pickMessage(corruptionLevel), title: 'Untitled' } });
@@ -85,10 +97,26 @@ export function useHorrorEvents({ corruptionLevel, onEvent }: Options) {
   // ── Page Visibility API — fires when user tabs back in ──────────────
   useEffect(() => {
     if (corruptionLevel < 25) return;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
     const handler = () => {
-      if (document.visibilityState !== 'visible') return;
-      setTimeout(() => {
+      if (document.visibilityState === 'hidden') {
+        wasAwayRef.current = true;
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+        return;
+      }
+
+      if (document.visibilityState !== 'visible' || !wasAwayRef.current) return;
+      wasAwayRef.current = false;
+
+      if (popupOpenRef.current || Math.random() > visibilityPopupChance) return;
+
+      timeoutId = setTimeout(() => {
+        timeoutId = null;
+        if (popupOpenRef.current) return;
         onEventRef.current({
           type: 'open_notepad',
           payload: {
@@ -102,6 +130,9 @@ export function useHorrorEvents({ corruptionLevel, onEvent }: Options) {
     };
 
     document.addEventListener('visibilitychange', handler);
-    return () => document.removeEventListener('visibilitychange', handler);
-  }, [corruptionLevel]);
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      document.removeEventListener('visibilitychange', handler);
+    };
+  }, [corruptionLevel, visibilityPopupChance]);
 }

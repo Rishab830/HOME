@@ -8,6 +8,7 @@ import { type DesktopAction, ACTION, explorerAction, notepadAction } from './act
 interface Props {
   corruptionLevel: number;
   onOpenApp: (action: DesktopAction) => void;   // ← was string
+  allowJumpscares?: boolean;
 }
 
 // ── Wallpaper ladder ──────────────────────────────────────────────────────────
@@ -46,7 +47,7 @@ function buildDesktopIcons(corruption: number): DesktopIcon[] {
   return icons;
 }
 
-export default function Desktop({ corruptionLevel, onOpenApp }: Props) {
+export default function Desktop({ corruptionLevel, onOpenApp, allowJumpscares = true }: Props) {
   // ── Wallpaper crossfade state ──────────────────────────────────────
   const currentWall   = getWallpaper(corruptionLevel);
   const [stableWall,  setStableWall]  = useState(currentWall);   // ← holds OLD image during fade
@@ -99,6 +100,7 @@ export default function Desktop({ corruptionLevel, onOpenApp }: Props) {
       if (
         prev < threshold &&
         corruptionLevel >= threshold &&
+        allowJumpscares &&
         !firedThresholds.current.includes(threshold)
       ) {
         firedThresholds.current.push(threshold);
@@ -120,7 +122,7 @@ export default function Desktop({ corruptionLevel, onOpenApp }: Props) {
       if (jumpscareOuterTimer.current) clearTimeout(jumpscareOuterTimer.current);
       if (jumpscareInnerTimer.current) clearTimeout(jumpscareInnerTimer.current);
     };
-  }, [corruptionLevel]);
+  }, [corruptionLevel, allowJumpscares]);
 
   // ── Icons ──────────────────────────────────────────────────────────
   const icons = buildDesktopIcons(corruptionLevel);

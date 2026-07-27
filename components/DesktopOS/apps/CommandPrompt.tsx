@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback, KeyboardEvent } from 'react';
 import styles from './apps.module.css';
 import { FILESYSTEM, FSFolder, FSNode } from '../horror/filesystem';
+import type { StoryFlag } from '@/hooks/useStoryState';
 
 // ── Adventure game data ───────────────────────────────────────────────────────
 interface Choice {
@@ -11,6 +12,7 @@ interface Choice {
   next:        string;
   corruption?: number;
   action?:     string;
+  flag?:       StoryFlag;
 }
 interface GameNode {
   id:       string;
@@ -155,7 +157,7 @@ const GAME: Record<string, GameNode> = {
     choices: [
       { key: 'a', label: 'Open Door A — MEMORIES',    next: 'memories', corruption: 2 },
       { key: 'b', label: 'Open Door B — SYSTEM LOGS', next: 'logs',     corruption: 2 },
-      { key: 'c', label: 'Open Door C — [CORRUPTED]', next: 'deleted',  corruption: 4 },
+      { key: 'c', label: 'Open Door C — [CORRUPTED]', next: 'deleted',  corruption: 4, flag: 'entered_corrupted_room' },
     ],
   },
 
@@ -179,7 +181,7 @@ const GAME: Record<string, GameNode> = {
       'The screen shows this room.',
     ],
     choices: [
-      { key: '1', label: 'Take the drawing.',             next: 'memories_drawing', corruption: 3 },
+      { key: '1', label: 'Take the drawing.',             next: 'memories_drawing', corruption: 3, flag: 'took_emma_drawing' },
       { key: '2', label: 'Look at the computer screen.',  next: 'memories_screen',  corruption: 5 },
       { key: '3', label: 'Leave.',                        next: 'corridor_2'                      },
     ],
@@ -250,9 +252,9 @@ const GAME: Record<string, GameNode> = {
       'It is labeled: VISITOR_LOG',
     ],
     choices: [
-      { key: '1', label: 'Open the VISITOR_LOG drawer.', next: 'logs_visitor', corruption: 3 },
-      { key: '2', label: 'Open the 2003 drawer.',        next: 'logs_2003',    corruption: 4 },
-      { key: '3', label: "Open today's drawer.",         next: 'logs_today',   corruption: 6 },
+      { key: '1', label: 'Open the VISITOR_LOG drawer.', next: 'logs_visitor', corruption: 3, flag: 'read_visitor_log' },
+      { key: '2', label: 'Open the 2003 drawer.',        next: 'logs_2003',    corruption: 4, flag: 'read_2003_incident' },
+      { key: '3', label: "Open today's drawer.",         next: 'logs_today',   corruption: 6, flag: 'read_today_log' },
       { key: '4', label: 'Leave.',                       next: 'corridor_2'                  },
     ],
   },
@@ -347,8 +349,8 @@ const GAME: Record<string, GameNode> = {
       'as the figure in the family photo.',
     ],
     choices: [
-      { key: '1', label: 'Approach it.',      next: 'deleted_approach', corruption: 6 },
-      { key: '2', label: 'Call out to it.',   next: 'deleted_call',     corruption: 4 },
+      { key: '1', label: 'Approach it.',      next: 'deleted_approach', corruption: 6, flag: 'approached_body' },
+      { key: '2', label: 'Call out to it.',   next: 'deleted_call',     corruption: 4, flag: 'called_body' },
       { key: '3', label: 'Back out slowly.',  next: 'corridor_2'                      },
     ],
   },
@@ -454,9 +456,9 @@ const GAME: Record<string, GameNode> = {
       ' You only get one."',
     ],
     choices: [
-      { key: '1', label: 'Press FREE.',    next: 'end_free',    corruption: 10, action: 'unlock_file' },
-      { key: '2', label: 'Press CONTAIN.', next: 'end_contain', corruption: 15 },
-      { key: '3', label: 'Press MERGE.',   next: 'end_merge',   corruption: 20 },
+      { key: '1', label: 'Press FREE.',    next: 'end_free',    corruption: 10, action: 'unlock_file', flag: 'chose_free' },
+      { key: '2', label: 'Press CONTAIN.', next: 'end_contain', corruption: 15, flag: 'chose_contain' },
+      { key: '3', label: 'Press MERGE.',   next: 'end_merge',   corruption: 20, flag: 'chose_merge' },
     ],
   },
 
@@ -631,6 +633,7 @@ interface Props {
   onGlitch:        (ms: number) => void;   // ← ADD
   unlockedFiles:   Set<string>;   // ← ADD
   onExit:          () => void;   // ← ADD
+  onStoryFlag?:    (flag: string) => void;
 }
 
 interface TypeOptions {
@@ -646,7 +649,7 @@ interface TypeQueueItem {
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
-export default function CommandPrompt({ corruptionLevel, triggerOnce, onUnlockFile, onGlitch, unlockedFiles, onExit, }: Props) {
+export default function CommandPrompt({ corruptionLevel, triggerOnce, onUnlockFile, onGlitch, unlockedFiles, onExit, onStoryFlag, }: Props) {
   const [lines,        setLines]        = useState<Line[]>([
     { text: 'Microsoft Windows XP [Version 5.1.2600]', type: 'system' },
     { text: '(C) Copyright 1985-2001 Microsoft Corp.', type: 'system' },
@@ -913,9 +916,10 @@ export default function CommandPrompt({ corruptionLevel, triggerOnce, onUnlockFi
 
     gameChoicesRef.current = [];
     if (choice.corruption) triggerOnce(`game:${choice.next}`, choice.corruption);
+    if (choice.flag) onStoryFlag?.(choice.flag);
     if (choice.action === 'unlock_file') onUnlockFile('michael_letter.txt');
     enterNode(choice.next);
-  }, [addLine, triggerOnce, onUnlockFile, enterNode]);
+  }, [addLine, triggerOnce, onUnlockFile, enterNode, onStoryFlag]);
 
   // ── Help glitch sequence ───────────────────────────────────────────
   const runHelp = useCallback(() => {
@@ -960,6 +964,7 @@ export default function CommandPrompt({ corruptionLevel, triggerOnce, onUnlockFi
     if (cmd === 'help') { runHelp(); return; }
 
     if (cmd === 'find_my_body.exe' || cmd === 'find_my_body') {
+      onStoryFlag?.('ran_find_my_body');
       triggerOnce('cmd:find_my_body', 6);
       setInGame(true);
       enterNode('start');
@@ -1071,7 +1076,7 @@ export default function CommandPrompt({ corruptionLevel, triggerOnce, onUnlockFi
     addLine(`'${raw}' is not recognized as an internal or external command,`, 'error');
     addLine('operable program or batch file.', 'error');
   }, [addLine, runHelp, triggerOnce, enterNode, typeLines,
-    corruptionLevel, currentPath, getFolder, isVisible, onExit]);
+    corruptionLevel, currentPath, getFolder, isVisible, onExit, onStoryFlag]);
 
   // ── Keyboard ───────────────────────────────────────────────────────
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {

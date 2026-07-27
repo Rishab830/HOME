@@ -57,9 +57,10 @@ const SAFE_SCRIPT: ScriptOp[] = [
 // ─── Component ────────────────────────────────────────────────────────────────
 interface Props {
   active: boolean;
+  allowRewrite?: boolean;
 }
 
-export default function SafeToCloseScreen({ active }: Props) {
+export default function SafeToCloseScreen({ active, allowRewrite = true }: Props) {
   const [safeText,      setSafeText]      = useState(ORIGINAL_TEXT);
   const [safeCursorPos, setSafeCursorPos] = useState(ORIGINAL_TEXT.length);
   const [safeCursorVis, setSafeCursorVis] = useState(false);
@@ -73,7 +74,7 @@ export default function SafeToCloseScreen({ active }: Props) {
 
   useEffect(() => {
     
-    if (!active) return;
+    if (!active || !allowRewrite) return;
 
     let cancelled = false;
     let step      = 0;
@@ -140,7 +141,7 @@ export default function SafeToCloseScreen({ active }: Props) {
 
     runStep();
     return () => { cancelled = true; };
-  }, [active]);
+  }, [active, allowRewrite]);
 
   if (!active) return null;
 

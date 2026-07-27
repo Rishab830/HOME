@@ -11,6 +11,8 @@ interface Props {
   triggerOnce:       (key: string, gain: number) => void; 
   deletedFiles:    Set<string>;
   unlockedFiles: Set<string>;
+  onStoryFlag?: (flag: string) => void;
+  onMeaningfulInteraction?: () => void;
 }
 
 function getNodeAtPath(path: string[]): FSFolder | null {
@@ -33,7 +35,8 @@ function nodeIcon(node: FSNode): string {
 }
 
 export default function FileExplorer({
-  initialPath, corruptionLevel, onOpenFile, triggerOnce, deletedFiles, unlockedFiles
+  initialPath, corruptionLevel, onOpenFile, triggerOnce, deletedFiles, unlockedFiles,
+  onStoryFlag, onMeaningfulInteraction,
 }: Props) {
   const [path, setPath] = useState<string[]>(initialPath);
   const [history, setHistory] = useState<string[][]>([initialPath]);
@@ -72,6 +75,8 @@ export default function FileExplorer({
     }
 
     if (node.type === 'folder') {
+      onMeaningfulInteraction?.();
+      if (node.setsFlag) onStoryFlag?.(node.setsFlag);
       if (node.lockedThreshold && corruptionLevel < node.lockedThreshold) {
         // Show a locked message — could be expanded to an error dialog
         alert(`Access denied.\n\nThis folder is locked.`);

@@ -22,12 +22,25 @@ import CommandPrompt from './apps/CommandPrompt';
 
 import { useCorruption }    from '@/hooks/useCorruption';
 import { useHorrorEvents }  from './horror/useHorrorEvents';
-import { FSFile, type CorruptionAppend } from './horror/filesystem';
+import { FILESYSTEM, FSFile, type CorruptionAppend, type FSNode } from './horror/filesystem';
 import { useCorruptedCursor } from '@/hooks/useCorruptedCursor';
 import { usePossession }      from '@/hooks/usePossession';
+import { useStoryState, type StoryFlag } from '@/hooks/useStoryState';
 import StartMenu from './StartMenu';
 
 const JUMPSCARE_DURATION = 1000;
+
+function findFileByName(name: string, nodes: FSNode[] = FILESYSTEM.children): FSFile | null {
+  for (const node of nodes) {
+    if (node.type === 'folder') {
+      const found = findFileByName(name, node.children);
+      if (found) return found;
+    } else if (node.name === name) {
+      return node;
+    }
+  }
+  return null;
+}
 
 // ─── Per-app prop shapes ──────────────────────────────────────────────────────
 export interface NotepadProps {
@@ -96,11 +109,14 @@ interface AppContentProps {
   onCmdGlitch:     (ms: number) => void;
   onUnlockFile:    (filename: string) => void;
   onClose:         (id: string) => void;
+  onStoryFlag:     (flag: string) => void;
+  onMeaningfulInteraction: () => void;
 }
 
 const AppContent = memo(function AppContent({
   win, corruptionLevel, onOpenFile, triggerOnce,
   deletedFiles, unlockedFiles, onSnakeCrash, onCmdGlitch, onUnlockFile, onClose,
+  onStoryFlag, onMeaningfulInteraction,
 }: AppContentProps) {
   // Stable callbacks for props that capture win.id.
   // win.id is a string that never changes for a given window,
@@ -129,6 +145,8 @@ const AppContent = memo(function AppContent({
           triggerOnce=    {triggerOnce}
           deletedFiles=   {deletedFiles}
           unlockedFiles=  {unlockedFiles}
+          onStoryFlag=    {onStoryFlag}
+          onMeaningfulInteraction={onMeaningfulInteraction}
         />
       );
 
@@ -175,6 +193,7 @@ const AppContent = memo(function AppContent({
           onGlitch=       {onCmdGlitch}
           unlockedFiles=  {unlockedFiles}
           onExit=         {handleCmdExit}
+          onStoryFlag=    {onStoryFlag}
         />
       );
 
@@ -185,6 +204,8 @@ const AppContent = memo(function AppContent({
 
 export default function DesktopOS({ onLogout, onTurnOff }: Props) {
   const { corruptionLevel, incrementCorruption, triggerOnce } = useCorruption();
+  const story = useStoryState();
+  const displayCorruption = story.canShowHorror ? corruptionLevel : 0;
 
   const [windows, setWindows]             = useState<OpenWindow[]>([]);
   const [activeId, setActiveId]           = useState<string | null>(null);
@@ -227,9 +248,15 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
     // put it here; for now it's a no-op.
   }, []);
 
-  const { possessed, gravityTarget, gravitySpeed, handlePossessionReach, } = usePossession({ onLogout, onOpenStartMenu: openStartMenu, onFocusLogoff: focusLogoffButton, });
+  const { possessed, gravityTarget, gravitySpeed, handlePossessionReach, } = usePossession({
+    active: story.canShowHardHorror,
+    onLogout,
+    onOpenStartMenu: openStartMenu,
+    onFocusLogoff: focusLogoffButton,
+  });
 
   const handleSnakeCrash = useCallback(() => {
+    story.markFlag('snake_crashed');
     setCrashBlocked(true);
     incrementCorruption(12);
 
@@ -257,7 +284,7 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
         }, JUMPSCARE_DURATION);
       }, 10_000);
     }, { once: true });   // once:true auto-removes the listener after firing
-  }, [incrementCorruption]);
+  }, [incrementCorruption, story]);
 
   useEffect(() => {
     return () => {
@@ -274,11 +301,10 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
     return () => { document.body.style.cursor = ''; };
   }, [isShuttingDown]);
 
-  // Ghost cursor is always visible; lag and gif effects are gated inside the hook at >= 52
-  const cursorActive = true;
+  const cursorActive = story.canShowHorror;
   useCorruptedCursor({
     active:        cursorActive,
-    corruption:    corruptionLevel,
+    corruption:    displayCorruption,
     onGifStart:    useCallback((src: string) => setGifCursorSrc(src), []),
     onGifEnd:      useCallback(() => setGifCursorSrc(null),           []),
     gravityTarget,
@@ -342,7 +368,11 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
     if (!win) return;
 
     // Special behaviour for beach_007.jpg
-    if (win.appType === 'image' && (win.appProps.filename === 'beach_007.jpg' || win.appProps.src.includes('beach_007'))) {
+    if (
+      story.canShowHardHorror &&
+      win.appType === 'image' &&
+      (win.appProps.filename === 'beach_007.jpg' || win.appProps.src.includes('beach_007'))
+    ) {
       if (win.closeAttempts === 0) {
         setWindows(prev => prev.map(w =>
           w.id === id
@@ -364,7 +394,7 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
     }
 
     closeWindow(id);
-  }, [windows, closeWindow]);
+  }, [windows, closeWindow, story.canShowHardHorror]);
 
   const focusWindow = useCallback((id: string) => {
     setWindows(prev => {
@@ -392,6 +422,7 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
 
   // ── Open a file from the filesystem ────────────────────────────────
   const handleOpenFile = useCallback((file: FSFile) => {
+    story.markInteraction(file.setsFlag as StoryFlag | undefined);
     if (file.corruptionGain) triggerOnce(`file:${file.name}`, file.corruptionGain);
 
     if (file.type === 'img') {
@@ -417,7 +448,15 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
       baseContent:       file.baseContent,
       corruptionAppends: file.corruptionAppends ?? [],
     });
-  }, [triggerOnce, openWindow, makeId]);  // ← ADD THIS LINE
+  }, [story, triggerOnce, openWindow, makeId]);  // ← ADD THIS LINE
+
+  const handleStoryFlag = useCallback((flag: string) => {
+    story.markFlag(flag as StoryFlag);
+  }, [story]);
+
+  const handleMeaningfulInteraction = useCallback(() => {
+    story.markInteraction();
+  }, [story]);
 
   const handleCmdGlitch = useCallback((ms: number) => {
     setShowCmdGlitch(true);
@@ -428,6 +467,7 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
   const handleOpenApp = useCallback((action: DesktopAction) => {
     // explorer:FolderName
     if (action.startsWith('explorer:')) {
+      story.markInteraction();
       const folderName = action.replace('explorer:', '');
       const initialPath = folderName === 'Desktop' ? [] : [folderName];
       openWindow('explorer', {
@@ -439,6 +479,7 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
     }
 
     if (action === notepadAction('new')) {
+      story.markInteraction();
       const id = makeId();
       openWindow('notepad', {
         title:       'Untitled - Notepad',
@@ -453,13 +494,21 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
       return;
     }
 
+    if (action.startsWith('notepad:')) {
+      const filename = action.replace('notepad:', '');
+      const file = findFileByName(filename);
+      if (file) handleOpenFile(file);
+      return;
+    }
+
     if (action === ACTION.IE) {
+      story.markInteraction();
       openWindow('error', {
         title:     'Internet Explorer',
         iconEmoji: '🌐',
         initialSize: { width: 420, height: 280 },
       }, {
-        message: corruptionLevel >= 40
+        message: displayCorruption >= 40
           ? 'Internet Explorer cannot display this page.\n\nThe connection was refused.\n\nYou are not supposed to leave.'
           : 'Internet Explorer cannot display the webpage.\n\nPlease check your connection and try again.',
       });
@@ -467,6 +516,7 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
     }
 
     if (action === ACTION.MY_COMPUTER) {
+      story.markInteraction();
       openWindow('explorer', {
         title:     'My Computer',
         iconEmoji: '🖥️',
@@ -475,6 +525,7 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
     }
 
     if (action === ACTION.MINESWEEPER) {
+      story.markInteraction('minesweeper_played');
       openWindow('minesweeper', {
         title:       'Minesweeper',
         iconEmoji:   '💣',
@@ -484,6 +535,7 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
     }
 
     if (action === ACTION.SNAKE) {
+      story.markInteraction('snake_played');
       openWindow('snake', {
         title:       'Snake',
         iconEmoji:   '🐍',
@@ -493,6 +545,7 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
     }
     
     if (action === ACTION.CMD) {
+      story.markInteraction('opened_cmd');
       openWindow('cmd', {
         title:       'C:\\  Command Prompt',
         iconEmoji:   '⬛',
@@ -501,7 +554,7 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
       return;
     }
 
-  }, [corruptionLevel, openWindow, handleOpenFile, makeId]);
+  }, [displayCorruption, openWindow, makeId, story, handleOpenFile]);
 
   const handleStartMenuApp = useCallback((action: string) => {
     if (action.startsWith('_error:')) {
@@ -520,21 +573,26 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
   }, [handleOpenApp, openWindow]);
 
   const handleTurnOff = useCallback(() => {
+    if (story.chapter !== 'ending') {
+      story.markFlag('walked_away');
+    }
     setShowStartMenu(false);
     setIsShuttingDown(true);
     setTimeout(() => {
       setSafeToClose(true);      // show the black screen
       window.close();            // silently fails in most browsers — safe-to-close is the fallback
     }, 1800);
-  }, []);
+  }, [story]);
 
   const handleUnlockFile = useCallback((filename: string) => {
+    if (filename === 'minesweeper_scores.txt') story.markFlag('minesweeper_won');
+    if (filename === 'snake_highscore.txt') story.markFlag('snake_highscore');
     setUnlockedFiles(prev => {
       const next = new Set(prev).add(filename);
       localStorage.setItem('xp_unlocked', JSON.stringify([...next]));
       return next;
     });
-  }, []);
+  }, [story]);
 
   // ── Horror event handler ─────────────────────────────────────────────
   const handleHorrorEvent = useCallback((e: { type: string; payload?: Record<string, string> }) => {
@@ -578,7 +636,13 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
     }
   }, [openWindow, makeId]);
 
-  useHorrorEvents({ corruptionLevel, onEvent: handleHorrorEvent });
+  const popupOpen = windows.some(win => win.appType === 'notepad' || win.appType === 'error');
+
+  useHorrorEvents({
+    corruptionLevel: displayCorruption,
+    onEvent: handleHorrorEvent,
+    popupOpen,
+  });
 
   // ────────────────────────────────────────────────────────────────────
   return (
@@ -587,7 +651,7 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
         className={[
           styles.os,
           isGlitching                    ? styles.glitching       : '',
-          corruptionLevel >= 78          ? styles.chromatic       : '',
+          displayCorruption >= 78        ? styles.chromatic       : '',
           cursorActive                   ? styles.corruptedCursor : '',
           isShuttingDown                 ? 'crt-shutdown'         : '', 
         ].join(' ')}
@@ -599,8 +663,9 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
       >
         {/* Desktop (wallpaper + icons) */}
         <Desktop
-          corruptionLevel= {corruptionLevel}
+          corruptionLevel= {displayCorruption}
           onOpenApp=       {handleOpenApp}
+          allowJumpscares= {story.canShowHardHorror}
         />
 
         {/* Windows — rendered in z-order (last = topmost) */}
@@ -619,7 +684,7 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
           >
             <AppContent
               win=            {win}
-              corruptionLevel={corruptionLevel}
+              corruptionLevel={displayCorruption}
               onOpenFile=     {handleOpenFile}
               triggerOnce=    {triggerOnce}
               deletedFiles=   {deletedFiles}
@@ -628,6 +693,8 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
               onCmdGlitch=    {handleCmdGlitch}
               onUnlockFile=   {handleUnlockFile}
               onClose=        {closeWindow}
+              onStoryFlag=    {handleStoryFlag}
+              onMeaningfulInteraction={handleMeaningfulInteraction}
             />
           </Window>
         ))}
@@ -641,7 +708,7 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
             minimized: w.minimized,
           }))}
           activeWindowId={activeId}
-          corruptionLevel={corruptionLevel}
+          corruptionLevel={displayCorruption}
           isStartOpen={showStartMenu}
           onWindowClick={handleTaskbarWindowClick}
           onStartClick={() => setShowStartMenu(v => !v)}
@@ -649,7 +716,7 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
 
         {showStartMenu && (
           <StartMenu
-            corruptionLevel= {corruptionLevel}
+            corruptionLevel= {displayCorruption}
             onClose=         {() => setShowStartMenu(false)}
             onOpenApp=       {handleStartMenuApp}
             onLogoff=        {onLogout}
@@ -658,7 +725,7 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
         )}
       </div>
 
-      <SafeToCloseScreen active={safeToClose} />
+      <SafeToCloseScreen active={safeToClose} allowRewrite={story.canShowHorror} />
 
       {crashBlocked && !showCrashScare && (
         <div

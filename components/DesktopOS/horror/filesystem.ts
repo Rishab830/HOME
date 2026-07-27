@@ -13,6 +13,8 @@ export interface FSFile {
   corruptionGain?:   number;
   hiddenThreshold?:  number;
   lockedThreshold?:  number;
+  setsFlag?:         string;
+  innocentSafe?:     boolean;
 }
 
 export interface FSFolder {
@@ -22,6 +24,8 @@ export interface FSFolder {
   corruptionGain?:  number;
   hiddenThreshold?: number;
   lockedThreshold?: number;
+  setsFlag?:        string;
+  innocentSafe?:    boolean;
 }
 
 export type FSNode = FSFile | FSFolder;
@@ -46,13 +50,17 @@ export const FILESYSTEM: FSFolder = {
           name: 'letter_to_mom.txt',
           type: 'txt',
           corruptionGain: 1,
+          setsFlag: 'read_letter_to_mom',
+          innocentSafe: true,
           baseContent:
 `Hi Mom,
 
 I hope you're doing well. I've been settling into the new apartment.
-The neighborhood is quiet — maybe a little too quiet — but I'm getting used to it.
+The neighborhood is quiet, and I'm getting used to it.
 
 I started the new job last week. Nothing too exciting, just data entry.
+Emma visited on Sunday and left another drawing on my desk.
+I promised her I would frame one once the new computer is set up.
 
 Miss you,
 Michael`,
@@ -79,15 +87,19 @@ i'm sorry.`,
           name: 'my_diary.txt',
           type: 'txt',
           corruptionGain: 1,
+          setsFlag: 'read_diary',
+          innocentSafe: true,
           baseContent:
 `August 12, 2003
 
 Got the new Dell today. Windows XP looks pretty slick.
 Set up the internet. Everything's working fine.
+Emma says the green hill wallpaper looks like a place from her storybooks.
 
 August 13, 2003
 
-Nothing much. Watched TV. Went to bed early.`,
+Nothing much. Watched TV. Went to bed early.
+Work is dull, but data entry pays on time.`,
           corruptionAppends: [
             {
               threshold: 20,
@@ -129,6 +141,8 @@ i am still here`,
           name: 'budget_2003.xls',
           type: 'xls',
           corruptionGain: 1,
+          setsFlag: 'read_budget',
+          innocentSafe: true,
           baseContent:
 `Month      | Income   | Expenses | Balance
 -----------|----------|----------|--------
@@ -150,14 +164,16 @@ Annual Total Savings: $1,980`,
           name: 'vacation_photos',
           type: 'folder',
           corruptionGain: 1,
+          setsFlag: 'opened_vacation_photos',
+          innocentSafe: true,
           children: [
-            { name: 'beach_001.jpg', type: 'img', baseContent: '/gallery/beach_001.jpg' },
-            { name: 'beach_002.jpg', type: 'img', baseContent: '/gallery/beach_002.jpg' },
-            { name: 'beach_003.jpg', type: 'img', baseContent: '/gallery/beach_003.jpg' },
-            { name: 'beach_004.jpg', type: 'img', baseContent: '/gallery/beach_004.jpg' },
-            { name: 'beach_005.jpg', type: 'img', baseContent: '/gallery/blur.jpg', corruptionGain: 1 },
-            { name: 'beach_006.jpg', type: 'img', baseContent: '/gallery/cornfield.jpg', corruptionGain: 1 },
-            { name: 'beach_007.jpg', type: 'img', baseContent: '/gallery/face.jpg', corruptionGain: 5 },
+            { name: 'beach_001.jpg', type: 'img', baseContent: '/gallery/beach_001.jpg', setsFlag: 'viewed_normal_photos', innocentSafe: true },
+            { name: 'beach_002.jpg', type: 'img', baseContent: '/gallery/beach_002.jpg', setsFlag: 'viewed_normal_photos', innocentSafe: true },
+            { name: 'beach_003.jpg', type: 'img', baseContent: '/gallery/beach_003.jpg', setsFlag: 'viewed_normal_photos', innocentSafe: true },
+            { name: 'beach_004.jpg', type: 'img', baseContent: '/gallery/beach_004.jpg', setsFlag: 'viewed_normal_photos', innocentSafe: true },
+            { name: 'beach_005.jpg', type: 'img', baseContent: '/gallery/blur.jpg', corruptionGain: 1, hiddenThreshold: 25, setsFlag: 'viewed_blur_photo' },
+            { name: 'beach_006.jpg', type: 'img', baseContent: '/gallery/cornfield.jpg', corruptionGain: 1, hiddenThreshold: 40, setsFlag: 'viewed_cornfield_photo' },
+            { name: 'beach_007.jpg', type: 'img', baseContent: '/gallery/face.jpg', corruptionGain: 5, hiddenThreshold: 65, setsFlag: 'viewed_face_photo' },
           ],
         },
 
@@ -167,6 +183,7 @@ Annual Total Savings: $1,980`,
           type:            'txt',
           hiddenThreshold: 999,
           corruptionGain:  1,
+          setsFlag:        'read_michael_letter',
           baseContent:
         `To whoever freed me,
 
@@ -206,11 +223,14 @@ Annual Total Savings: $1,980`,
       name: 'DO_NOT_OPEN',
       type: 'folder',
       corruptionGain: 1,
+      hiddenThreshold: 55,
       lockedThreshold: 80,
+      setsFlag: 'read_do_not_open',
       children: [
         {
           name: 'README.txt',
           type: 'txt',
+          setsFlag: 'read_do_not_open',
           baseContent:
 `you found it.
 
@@ -246,6 +266,7 @@ find the exit.
       type: 'log',
       hiddenThreshold: 50,
       corruptionGain: 1,
+      setsFlag: 'read_system_log',
       baseContent:
 `[2003-08-14 03:42:17] user_session_start :: user=michael_chen
 [2003-08-14 03:42:18] ERROR   :: kernel32.dll unhandled exception
@@ -277,6 +298,7 @@ find the exit.
           type: 'txt',
           hiddenThreshold: 35,
           corruptionGain: 1,
+          setsFlag: 'read_recycle_message',
           baseContent:
 `you weren't supposed to find this.
 
@@ -299,6 +321,7 @@ i haven't decided which.`,
       type:             'txt',
       hiddenThreshold:  999,          // never shown normally — only via unlockedFiles
       corruptionGain:   1,
+      setsFlag:         'read_minesweeper_scores',
       baseContent:
     `MINESWEEPER HIGH SCORES
     =======================
@@ -331,6 +354,7 @@ i haven't decided which.`,
       type:            'txt',
       hiddenThreshold: 999,
       corruptionGain:  1,
+      setsFlag:        'read_snake_highscore',
       baseContent:
     `SNAKE HIGH SCORE
     ================

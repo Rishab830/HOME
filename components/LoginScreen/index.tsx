@@ -6,6 +6,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import styles from './LoginScreen.module.css';
 import { useCorruption } from '@/hooks/useCorruption';
 import { useCorruptedCursor } from '@/hooks/useCorruptedCursor';
+import { useStoryState } from '@/hooks/useStoryState';
 import SafeToCloseScreen from '@/components/DesktopOS/SafeToCloseScreen';
 
 // ─── Secret credentials ──────────────────────────────────────────────────────
@@ -57,6 +58,8 @@ type UserTile = 'normal' | 'other' | null;
 
 export default function LoginScreen({ onLogin, onTurnOff }: Props) {
   const { loginCount, corruptionLevel, recordLogin, username: savedUsername, setUsername: saveUsername } = useCorruption();
+  const story = useStoryState();
+  const displayCorruption = story.canShowHorror ? corruptionLevel : 0;
 
   const [selectedTile, setSelectedTile]           = useState<UserTile>(null);
   const [password, setPassword]                   = useState('');
@@ -74,10 +77,10 @@ export default function LoginScreen({ onLogin, onTurnOff }: Props) {
   const passwordRef = useRef<HTMLInputElement>(null);
   const [gifCursorSrc, setGifCursorSrc] = useState<string | null>(null);
 
-  const cursorActive = true;
+  const cursorActive = story.canShowHorror;
   useCorruptedCursor({
     active:     cursorActive,
-    corruption: corruptionLevel,
+    corruption: displayCorruption,
     onGifStart: useCallback((src: string) => setGifCursorSrc(src), []),
     onGifEnd:   useCallback(() => setGifCursorSrc(null),           []),
   });
@@ -107,10 +110,10 @@ export default function LoginScreen({ onLogin, onTurnOff }: Props) {
     if (selectedTile) setTimeout(() => passwordRef.current?.focus(), 80);
   }, [selectedTile]);
 
-  const msg           = resolveMessage(corruptionLevel);   // 👈 drives messages
-  const isCorrupted   = corruptionLevel >= 52;             // scanlines + ghost avatar turns red
-  const isAggressive  = corruptionLevel >= 65;             // red tint, caps messages
-  const isMaxCorrupt  = corruptionLevel >= 78;             // "Other" tile becomes ███████
+  const msg           = resolveMessage(displayCorruption);   // drives messages
+  const isCorrupted   = displayCorruption >= 52;             // scanlines + ghost avatar turns red
+  const isAggressive  = displayCorruption >= 65;             // red tint, caps messages
+  const isMaxCorrupt  = displayCorruption >= 78;             // "Other" tile becomes redacted
 
   useEffect(() => {
     const stored = localStorage.getItem('xp_username');
@@ -135,6 +138,7 @@ export default function LoginScreen({ onLogin, onTurnOff }: Props) {
   const handleLogin = useCallback(() => {
     // 1. Secret credentials → Part 2 unlock
     if (username.trim() === SECRET_USER && password === SECRET_PASS) {
+      story.markFlags(['admin_login']);
       setIsTransitioning(true);
       setSecretMode(true);
       setTimeout(() => onLogin(true), 3000);
@@ -144,6 +148,7 @@ export default function LoginScreen({ onLogin, onTurnOff }: Props) {
     // 2. Normal user tile — password is empty or "password" (XP default)
     if (selectedTile === 'normal') {
       if (password === '' || password.toLowerCase() === 'password') {
+        story.markInteraction();
         recordLogin();
         setIsTransitioning(true);
         setSecretMode(false);
@@ -162,13 +167,16 @@ export default function LoginScreen({ onLogin, onTurnOff }: Props) {
     setShakePassword(true);
     setTimeout(() => setShakePassword(false), 500);
     passwordRef.current?.focus();
-  }, [username, password, selectedTile, isAggressive, recordLogin, onLogin]);
+  }, [username, password, selectedTile, isAggressive, recordLogin, onLogin, story]);
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') handleLogin();
   };
 
   const handleTurnOff = useCallback(() => {
+    if (story.chapter !== 'ending') {
+      story.markFlag('walked_away');
+    }
     setIsShuttingDown(true);
     // After CRT collapse animation finishes, attempt window.close()
     // then fall back to the "safe to close" screen
@@ -176,7 +184,7 @@ export default function LoginScreen({ onLogin, onTurnOff }: Props) {
       setCrtDone(true);
       window.close();     // works only if tab was JS-opened; silently fails otherwise
     }, 1800);             // matches .crtShutdown animation duration
-  }, []);
+  }, [story]);
 
 
   // ── The "Other" tile label warps at high corruption ──────────────────────────
@@ -349,7 +357,7 @@ export default function LoginScreen({ onLogin, onTurnOff }: Props) {
       )}
 
       {/* Fallback for browsers that block window.close() */}
-      <SafeToCloseScreen active={crtDone} />
+      <SafeToCloseScreen active={crtDone} allowRewrite={story.canShowHorror} />
 
       {isShuttingDown && (
         <div style={{
@@ -519,7 +527,7 @@ function TransitionOverlay({
     ].join(' ')}>
       {isSecret ? (
         <div className={styles.secretContent}>
-          <p className={styles.secretLine1}>// RESTRICTED ACCESS //</p>
+          <p className={styles.secretLine1}>{'// RESTRICTED ACCESS //'}</p>
           <p className={styles.secretLine2}>identity confirmed</p>
           <p className={styles.secretLine3}>loading restricted partition...</p>
         </div>
