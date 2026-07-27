@@ -772,6 +772,24 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
 
       {showCmdGlitch && <GlitchOverlay />}
 
+      <div
+        style={{
+          position: 'fixed',
+          top: 8,
+          right: 10,
+          zIndex: 100000,
+          color: '#ff0000',
+          fontFamily: 'Courier New, monospace',
+          fontSize: '18px',
+          fontWeight: 700,
+          textShadow: '1px 1px 0 #000',
+          pointerEvents: 'none',
+        }}
+        aria-label={`Debug corruption ${corruptionLevel}`}
+      >
+        {corruptionLevel}
+      </div>
+
       {isShuttingDown && (
         <div style={{
           position:      'fixed',
