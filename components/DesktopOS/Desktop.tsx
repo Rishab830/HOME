@@ -30,6 +30,7 @@ interface DesktopIcon {
   label:   string;
   emoji:   string;
   action:  DesktopAction;   // ← was string
+  iconSrc?: string;
   hidden?: boolean;
   kind?:   'folder' | 'app' | 'file';
 }
@@ -57,10 +58,17 @@ function buildDesktopIcons(corruption: number): DesktopIcon[] {
   const icons: DesktopIcon[] = [
     { label: 'My Documents',      emoji: '📁', action: explorerAction('My Documents') },
     { label: 'My Computer',       emoji: '🖥️', action: ACTION.MY_COMPUTER             },
-    { label: 'Recycle Bin',       emoji: '🗑️', action: explorerAction('Recycle Bin')  },
-    { label: 'Internet Explorer', emoji: '🌐', action: ACTION.IE                       },
-    { label: 'Minesweeper',       emoji: '💣', action: ACTION.MINESWEEPER              },
-    { label: 'Snake',             emoji: '🐍', action: ACTION.SNAKE                    },
+    {
+      label: 'Recycle Bin',
+      emoji: '🗑️',
+      action: explorerAction('Recycle Bin'),
+      iconSrc: corruption >= 50
+        ? '/icons/recycle_bin_full_icon.png'
+        : '/icons/recycle_bin_empty_icon.png',
+    },
+    { label: 'Internet Explorer', emoji: '🌐', action: ACTION.IE, iconSrc: '/icons/internet_explorer_icon.png' },
+    { label: 'Minesweeper',       emoji: '💣', action: ACTION.MINESWEEPER, iconSrc: '/icons/minesweeper_icon.png' },
+    { label: 'Snake',             emoji: '🐍', action: ACTION.SNAKE, iconSrc: '/icons/snake_icon.png' },
   ];
   if (corruption >= 50) {
     icons.push({ label: 'system_log.txt', emoji: '📄', action: notepadAction('system_log.txt') });
@@ -181,7 +189,13 @@ export default function Desktop({
     setContextMenu(null);
   };
 
-  const addDesktopIcon = (baseLabel: string, emoji: string, action: DesktopAction, kind: DesktopIcon['kind']) => {
+  const addDesktopIcon = (
+    baseLabel: string,
+    emoji: string,
+    action: DesktopAction,
+    kind: DesktopIcon['kind'],
+    iconSrc?: string
+  ) => {
     setCustomIcons(prev => {
       const existing = new Set([...buildDesktopIcons(corruptionLevel), ...prev].map(icon => icon.label));
       let label = baseLabel;
@@ -190,7 +204,7 @@ export default function Desktop({
         label = `${baseLabel} (${n})`;
         n++;
       }
-      return [...prev, { label, emoji, action, kind }];
+      return [...prev, { label, emoji, action, kind, iconSrc }];
     });
   };
 
@@ -256,7 +270,15 @@ export default function Desktop({
             onDoubleClick={()     => { setSelected(icon.label); onOpenApp(icon.action); }}
             onKeyDown={e          => e.key === 'Enter' && onOpenApp(icon.action)}
           >
-            <span className={styles.iconEmoji} aria-hidden>{icon.emoji}</span>
+            {icon.iconSrc ? (
+              <span
+                className={styles.iconImage}
+                style={{ backgroundImage: `url(${icon.iconSrc})` }}
+                aria-hidden
+              />
+            ) : (
+              <span className={styles.iconEmoji} aria-hidden>{icon.emoji}</span>
+            )}
             <span className={styles.iconLabel}>{icon.label}</span>
           </button>
         ))}
@@ -290,14 +312,14 @@ export default function Desktop({
           <button className={styles.menuButton} onClick={() => runMenuAction(refreshDesktop)}>Refresh</button>
           <div className={styles.separator} />
           <button className={styles.menuButton} onClick={() => runMenuAction(() => addDesktopIcon('Pasted Text Document.txt', '📄', notepadAction('new'), 'file'))}>Paste</button>
-          <button className={styles.menuButton} onClick={() => runMenuAction(() => addDesktopIcon('Shortcut to Internet Explorer', '🌐', ACTION.IE, 'app'))}>Paste Shortcut</button>
+          <button className={styles.menuButton} onClick={() => runMenuAction(() => addDesktopIcon('Shortcut to Internet Explorer', '🌐', ACTION.IE, 'app', '/icons/internet_explorer_icon.png'))}>Paste Shortcut</button>
           <div className={styles.separator} />
           <div className={styles.menuItem} role="menuitem">
             New
             <span className={styles.arrow}>▶</span>
             <div className={styles.submenu}>
               <button onClick={() => runMenuAction(() => addDesktopIcon('New Folder', '📁', explorerAction('Desktop'), 'folder'))}>Folder</button>
-              <button onClick={() => runMenuAction(() => addDesktopIcon('New Shortcut', '🌐', ACTION.IE, 'app'))}>Shortcut</button>
+              <button onClick={() => runMenuAction(() => addDesktopIcon('New Shortcut', '🌐', ACTION.IE, 'app', '/icons/internet_explorer_icon.png'))}>Shortcut</button>
               <button onClick={() => runMenuAction(() => addDesktopIcon('New Text Document.txt', '📄', notepadAction('new'), 'file'))}>Text Document</button>
             </div>
           </div>

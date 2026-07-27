@@ -62,11 +62,23 @@
 }
 
 .iconEmoji { font-size: 32px; line-height: 1; }
+.iconImage {
+  width: 32px;
+  height: 32px;
+  display: block;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+}
 .largeIcons .icon {
   width: 88px;
 }
 .largeIcons .iconEmoji {
   font-size: 42px;
+}
+.largeIcons .iconImage {
+  width: 42px;
+  height: 42px;
 }
 .iconLabel {
   font-size:   11px;
