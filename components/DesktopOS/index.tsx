@@ -463,6 +463,18 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
     setTimeout(() => setShowCmdGlitch(false), ms);
   }, []);
 
+  const handleOpenDisplayProperties = useCallback(() => {
+    openWindow('error', {
+      title:           'Display Properties',
+      iconEmoji:       '🖥️',
+      initialSize:     { width: 420, height: 230 },
+      initialPosition: { x: 280, y: 160 },
+    }, {
+      message:
+        'Display Properties\n\nTheme: Windows XP\nDesktop: Bliss\nScreen saver: None\nColor quality: Highest (32 bit)\n\nThese settings are managed by the current session.',
+    });
+  }, [openWindow]);
+
   // ── Desktop icon / action routing ───────────────────────────────────
   const handleOpenApp = useCallback((action: DesktopAction) => {
     // explorer:FolderName
@@ -666,6 +678,7 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
           corruptionLevel= {displayCorruption}
           onOpenApp=       {handleOpenApp}
           allowJumpscares= {story.canShowHardHorror}
+          onOpenProperties={handleOpenDisplayProperties}
         />
 
         {/* Windows — rendered in z-order (last = topmost) */}

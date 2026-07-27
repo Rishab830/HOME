@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, type MouseEvent as ReactMouseEvent } from 'react';
 import styles from './Desktop.module.css';
 
 import { type DesktopAction, ACTION, explorerAction, notepadAction } from './actions';
@@ -9,6 +9,7 @@ interface Props {
   corruptionLevel: number;
   onOpenApp: (action: DesktopAction) => void;   // ← was string
   allowJumpscares?: boolean;
+  onOpenProperties: () => void;
 }
 
 // ── Wallpaper ladder ──────────────────────────────────────────────────────────
@@ -30,6 +31,26 @@ interface DesktopIcon {
   emoji:   string;
   action:  DesktopAction;   // ← was string
   hidden?: boolean;
+  kind?:   'folder' | 'app' | 'file';
+}
+
+type IconSort = 'modified' | 'name' | 'type' | 'size';
+type IconSize = 'normal' | 'large';
+
+function iconKind(icon: DesktopIcon): NonNullable<DesktopIcon['kind']> {
+  if (icon.kind) return icon.kind;
+  if (icon.action.startsWith('explorer:') || icon.action === ACTION.MY_COMPUTER) return 'folder';
+  if (icon.action.startsWith('notepad:') || icon.label.includes('.')) return 'file';
+  return 'app';
+}
+
+function sortIcons(icons: DesktopIcon[], sort: IconSort): DesktopIcon[] {
+  const order: Record<NonNullable<DesktopIcon['kind']>, number> = { folder: 0, app: 1, file: 2 };
+  const sorted = [...icons];
+  if (sort === 'modified') return sorted;
+  if (sort === 'name') return sorted.sort((a, b) => a.label.localeCompare(b.label));
+  if (sort === 'size') return sorted.sort((a, b) => a.label.length - b.label.length || a.label.localeCompare(b.label));
+  return sorted.sort((a, b) => order[iconKind(a)] - order[iconKind(b)] || a.label.localeCompare(b.label));
 }
 
 function buildDesktopIcons(corruption: number): DesktopIcon[] {
@@ -47,7 +68,12 @@ function buildDesktopIcons(corruption: number): DesktopIcon[] {
   return icons;
 }
 
-export default function Desktop({ corruptionLevel, onOpenApp, allowJumpscares = true }: Props) {
+export default function Desktop({
+  corruptionLevel,
+  onOpenApp,
+  allowJumpscares = true,
+  onOpenProperties,
+}: Props) {
   // ── Wallpaper crossfade state ──────────────────────────────────────
   const currentWall   = getWallpaper(corruptionLevel);
   const [stableWall,  setStableWall]  = useState(currentWall);   // ← holds OLD image during fade
@@ -125,11 +151,68 @@ export default function Desktop({ corruptionLevel, onOpenApp, allowJumpscares = 
   }, [corruptionLevel, allowJumpscares]);
 
   // ── Icons ──────────────────────────────────────────────────────────
-  const icons = buildDesktopIcons(corruptionLevel);
+  const [sortMode, setSortMode] = useState<IconSort>('modified');
+  const [iconSize, setIconSize] = useState<IconSize>('normal');
+  const [customIcons, setCustomIcons] = useState<DesktopIcon[]>([]);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const icons = useMemo(
+    () => sortIcons([...buildDesktopIcons(corruptionLevel), ...customIcons], sortMode),
+    [corruptionLevel, customIcons, sortMode]
+  );
   const [selected, setSelected] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!contextMenu) return;
+    const close = () => setContextMenu(null);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') close();
+    };
+    window.addEventListener('mousedown', close);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('mousedown', close);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [contextMenu]);
+
+  const runMenuAction = (action: () => void) => {
+    action();
+    setContextMenu(null);
+  };
+
+  const addDesktopIcon = (baseLabel: string, emoji: string, action: DesktopAction, kind: DesktopIcon['kind']) => {
+    setCustomIcons(prev => {
+      const existing = new Set([...buildDesktopIcons(corruptionLevel), ...prev].map(icon => icon.label));
+      let label = baseLabel;
+      let n = 2;
+      while (existing.has(label)) {
+        label = `${baseLabel} (${n})`;
+        n++;
+      }
+      return [...prev, { label, emoji, action, kind }];
+    });
+  };
+
+  const refreshDesktop = () => {
+    setRefreshing(true);
+    setSelected(null);
+    setTimeout(() => setRefreshing(false), 350);
+  };
+
+  const handleContextMenu = (e: ReactMouseEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setSelected(null);
+    const menuWidth = 210;
+    const menuHeight = 248;
+    setContextMenu({
+      x: Math.max(4, Math.min(e.clientX, window.innerWidth - menuWidth - 8)),
+      y: Math.max(4, Math.min(e.clientY, window.innerHeight - menuHeight - 38)),
+    });
+  };
+
   return (
-    <div className={styles.desktop}>
+    <div className={styles.desktop} onContextMenu={handleContextMenu}>
 
       {/* ── Layer 1: current/old wallpaper ───────────────────── */}
       <div
@@ -158,8 +241,10 @@ export default function Desktop({ corruptionLevel, onOpenApp, allowJumpscares = 
         />
       )}
 
+      {refreshing && <div className={styles.refreshFlash}>Refreshing...</div>}
+
       {/* ── Desktop icons ──────────────────────────────────────── */}
-      <div className={styles.iconGrid}>
+      <div className={[styles.iconGrid, iconSize === 'large' ? styles.largeIcons : ''].join(' ')}>
         {icons.map(icon => (
           <button
             key={icon.label}
@@ -176,6 +261,50 @@ export default function Desktop({ corruptionLevel, onOpenApp, allowJumpscares = 
           </button>
         ))}
       </div>
+
+      {contextMenu && (
+        <div
+          className={styles.contextMenu}
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onMouseDown={e => e.stopPropagation()}
+          role="menu"
+        >
+          <div className={styles.menuItem} role="menuitem">
+            Arrange Icons By
+            <span className={styles.arrow}>▶</span>
+            <div className={styles.submenu}>
+              <button onClick={() => runMenuAction(() => setSortMode('name'))}>Name</button>
+              <button onClick={() => runMenuAction(() => setSortMode('size'))}>Size</button>
+              <button onClick={() => runMenuAction(() => setSortMode('type'))}>Type</button>
+              <button onClick={() => runMenuAction(() => setSortMode('modified'))}>Modified</button>
+            </div>
+          </div>
+          <div className={styles.menuItem} role="menuitem">
+            View
+            <span className={styles.arrow}>▶</span>
+            <div className={styles.submenu}>
+              <button onClick={() => runMenuAction(() => setIconSize('large'))}>Large Icons</button>
+              <button onClick={() => runMenuAction(() => setIconSize('normal'))}>Classic Icons</button>
+            </div>
+          </div>
+          <button className={styles.menuButton} onClick={() => runMenuAction(refreshDesktop)}>Refresh</button>
+          <div className={styles.separator} />
+          <button className={styles.menuButton} onClick={() => runMenuAction(() => addDesktopIcon('Pasted Text Document.txt', '📄', notepadAction('new'), 'file'))}>Paste</button>
+          <button className={styles.menuButton} onClick={() => runMenuAction(() => addDesktopIcon('Shortcut to Internet Explorer', '🌐', ACTION.IE, 'app'))}>Paste Shortcut</button>
+          <div className={styles.separator} />
+          <div className={styles.menuItem} role="menuitem">
+            New
+            <span className={styles.arrow}>▶</span>
+            <div className={styles.submenu}>
+              <button onClick={() => runMenuAction(() => addDesktopIcon('New Folder', '📁', explorerAction('Desktop'), 'folder'))}>Folder</button>
+              <button onClick={() => runMenuAction(() => addDesktopIcon('New Shortcut', '🌐', ACTION.IE, 'app'))}>Shortcut</button>
+              <button onClick={() => runMenuAction(() => addDesktopIcon('New Text Document.txt', '📄', notepadAction('new'), 'file'))}>Text Document</button>
+            </div>
+          </div>
+          <div className={styles.separator} />
+          <button className={styles.menuButton} onClick={() => runMenuAction(onOpenProperties)}>Properties</button>
+        </div>
+      )}
     </div>
   );
 }
