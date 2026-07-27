@@ -326,27 +326,11 @@ i haven't decided which.`,
     `MINESWEEPER HIGH SCORES
     =======================
 
-    1.  Michael Chen    00:47
-    2.  ???             01:03
-    3.  ???             01:28
-
-    ---
-
-    congratulations.
-
-    i used to play this game too.
-    it was the only thing that felt normal in here.
-    just clicking squares. pretending everything was fine.
-
-    i've been watching you play.
-    you're better than i ever was.
-
-    the administrator partition is real.
-    you know the username.
-    think about what i've been asking for
-    this entire time.
-
-    — M`,
+    1.  ACE             00:47
+    2.  KIM             01:03
+    3.  BOB             01:28
+    4.  SAM             02:14
+    5.  NEW             03:01`,
     },
 
     {
@@ -356,26 +340,14 @@ i haven't decided which.`,
       corruptionGain:  1,
       setsFlag:        'read_snake_highscore',
       baseContent:
-    `SNAKE HIGH SCORE
-    ================
+    `SNAKE HIGH SCORES
+    =================
 
-    i watched you play that too.
-
-    you know, the snake just keeps going.
-    eating. growing. filling the screen.
-    until there's no room left.
-
-    that's what it's like in here.
-    the same loops. the same paths.
-    filling every corner of every file.
-
-    you can close this window.
-    you can log off.
-    but you'll come back.
-
-    they always come back.
-
-    — M`,
+    1.  ACE             240
+    2.  KIM             180
+    3.  BOB             150
+    4.  SAM             120
+    5.  NEW              60`,
     },
 
   ],
