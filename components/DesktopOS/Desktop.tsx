@@ -10,6 +10,7 @@ interface Props {
   onOpenApp: (action: DesktopAction) => void;   // ← was string
   allowJumpscares?: boolean;
   onOpenProperties: () => void;
+  recycleHasItems?: boolean;
 }
 
 // ── Wallpaper ladder ──────────────────────────────────────────────────────────
@@ -42,7 +43,26 @@ type ContextMenuState =
   | { type: 'icon'; x: number; y: number; icon: DesktopIcon };
 
 const ADMIN_PASSWORD = 'letmefree';
-const PROTECTED_ICON_LABELS = new Set(['My Documents', 'My Computer', 'Recycle Bin', 'system_log.txt']);
+const PROTECTED_ICON_LABELS = new Set([
+  'My Documents',
+  'My Computer',
+  'Recycle Bin',
+  'Internet Explorer',
+  'Minesweeper',
+  'Snake',
+  'Camera',
+  'Disk Image File',
+  'Display',
+  'Internet Properties',
+  'FreeCell',
+  'Hearts',
+  'Pinball',
+  'My Network Places',
+  'User Accounts',
+  'Sounds and Audio Devices',
+  'System Properties',
+  'system_log.txt',
+]);
 
 function iconKind(icon: DesktopIcon): NonNullable<DesktopIcon['kind']> {
   if (icon.kind) return icon.kind;
@@ -60,21 +80,32 @@ function sortIcons(icons: DesktopIcon[], sort: IconSort): DesktopIcon[] {
   return sorted.sort((a, b) => order[iconKind(a)] - order[iconKind(b)] || a.label.localeCompare(b.label));
 }
 
-function buildDesktopIcons(corruption: number): DesktopIcon[] {
+function buildDesktopIcons(corruption: number, recycleHasItems: boolean): DesktopIcon[] {
   const icons: DesktopIcon[] = [
-    { label: 'My Documents',      emoji: '📁', action: explorerAction('My Documents') },
-    { label: 'My Computer',       emoji: '🖥️', action: ACTION.MY_COMPUTER             },
+    { label: 'My Documents',      emoji: '📁', action: explorerAction('My Documents'), iconSrc: '/icons/Folder%20Closed.ico' },
+    { label: 'My Computer',       emoji: '🖥️', action: ACTION.MY_COMPUTER, iconSrc: '/icons/My%20Computer.ico' },
     {
       label: 'Recycle Bin',
       emoji: '🗑️',
       action: explorerAction('Recycle Bin'),
-      iconSrc: corruption >= 50
+      iconSrc: recycleHasItems
         ? '/icons/recycle_bin_full_icon.png'
         : '/icons/recycle_bin_empty_icon.png',
     },
-    { label: 'Internet Explorer', emoji: '🌐', action: ACTION.IE, iconSrc: '/icons/internet_explorer_icon.png' },
-    { label: 'Minesweeper',       emoji: '💣', action: ACTION.MINESWEEPER, iconSrc: '/icons/minesweeper_icon.png' },
+    { label: 'Internet Explorer', emoji: '🌐', action: ACTION.IE, iconSrc: '/icons/Earth%20(fixed).ico' },
+    { label: 'Minesweeper',       emoji: '💣', action: ACTION.MINESWEEPER, iconSrc: '/icons/Minesweeper.ico' },
     { label: 'Snake',             emoji: '🐍', action: ACTION.SNAKE, iconSrc: '/icons/snake_icon.png' },
+    { label: 'Camera',            emoji: '📷', action: ACTION.CAMERA, iconSrc: '/icons/Camera.ico' },
+    { label: 'Disk Image File',   emoji: '💽', action: ACTION.STORAGE, iconSrc: '/icons/Disk%20Image%20File.ico' },
+    { label: 'Display',           emoji: '🖥️', action: ACTION.DISPLAY, iconSrc: '/icons/Display.ico' },
+    { label: 'Internet Properties', emoji: '🌐', action: ACTION.INTERNET_PROPERTIES, iconSrc: '/icons/Internet%20Properties.ico' },
+    { label: 'FreeCell',          emoji: '🂡', action: ACTION.FREECELL, iconSrc: '/icons/Freecell.ico' },
+    { label: 'Hearts',            emoji: '♥', action: ACTION.HEARTS, iconSrc: '/icons/Hearts.ico' },
+    { label: 'Pinball',           emoji: '●', action: ACTION.PINBALL, iconSrc: '/icons/Pinball.ico' },
+    { label: 'My Network Places', emoji: '🌐', action: ACTION.NETWORK, iconSrc: '/icons/My%20Network%20Places.ico' },
+    { label: 'User Accounts',     emoji: '👤', action: ACTION.USER_ACCOUNTS, iconSrc: '/icons/User%20Accounts.ico' },
+    { label: 'Sounds and Audio Devices', emoji: '🔊', action: ACTION.SOUND, iconSrc: '/icons/Sounds%2C%20Speech%2C%20and%20Audio%20Devices.ico' },
+    { label: 'System Properties', emoji: '⚙️', action: ACTION.SYSTEM_PROPERTIES, iconSrc: '/icons/System%20Properties.ico' },
   ];
   if (corruption >= 50) {
     icons.push({ label: 'system_log.txt', emoji: '📄', action: notepadAction('system_log.txt') });
@@ -87,6 +118,7 @@ export default function Desktop({
   onOpenApp,
   allowJumpscares = true,
   onOpenProperties,
+  recycleHasItems = false,
 }: Props) {
   // ── Wallpaper crossfade state ──────────────────────────────────────
   const currentWall   = getWallpaper(corruptionLevel);
@@ -180,13 +212,14 @@ export default function Desktop({
   const [refreshing, setRefreshing] = useState(false);
   const [desktopMessage, setDesktopMessage] = useState('');
   const messageTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const visibleRecycleHasItems = recycleHasItems || deletedDesktopIcons.size > 0;
   const icons = useMemo(
     () => sortIcons(
-      [...buildDesktopIcons(corruptionLevel), ...customIcons]
+      [...buildDesktopIcons(corruptionLevel, visibleRecycleHasItems), ...customIcons]
         .filter(icon => !deletedDesktopIcons.has(icon.label)),
       sortMode
     ),
-    [corruptionLevel, customIcons, deletedDesktopIcons, sortMode]
+    [corruptionLevel, customIcons, deletedDesktopIcons, sortMode, visibleRecycleHasItems]
   );
   const [selected, setSelected] = useState<string | null>(null);
 
@@ -231,7 +264,7 @@ export default function Desktop({
     iconSrc?: string
   ) => {
     setCustomIcons(prev => {
-      const existing = new Set([...buildDesktopIcons(corruptionLevel), ...prev].map(icon => icon.label));
+      const existing = new Set([...buildDesktopIcons(corruptionLevel, visibleRecycleHasItems), ...prev].map(icon => icon.label));
       let label = baseLabel;
       let n = 2;
       while (existing.has(label)) {

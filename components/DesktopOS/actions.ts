@@ -28,6 +28,17 @@ export const ACTION = {
   SNAKE:       'snake',
   CMD:         'cmd',
   MY_COMPUTER: 'mycomputer',
+  CAMERA:      'camera',
+  STORAGE:     'storage',
+  DISPLAY:     'display',
+  INTERNET_PROPERTIES: 'internet_properties',
+  FREECELL:    'freecell',
+  HEARTS:      'hearts',
+  PINBALL:     'pinball',
+  NETWORK:     'network',
+  USER_ACCOUNTS: 'user_accounts',
+  SOUND:       'sound',
+  SYSTEM_PROPERTIES: 'system_properties',
 } as const;
 
 export type SimpleAction  = typeof ACTION[keyof typeof ACTION];

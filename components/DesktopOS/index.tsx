@@ -19,6 +19,7 @@ import ImageViewer from './apps/ImageViewer';
 import Minesweeper from './apps/Minesweeper';
 import Snake from './apps/Snake';
 import CommandPrompt from './apps/CommandPrompt';
+import SystemPanel, { type SystemPanelKind } from './apps/SystemPanel';
 
 import { useCorruption }    from '@/hooks/useCorruption';
 import { useHorrorEvents }  from './horror/useHorrorEvents';
@@ -62,6 +63,7 @@ export interface ImageProps {
 export interface MinesweeperProps { [key: string]: never }
 export interface SnakeProps       { [key: string]: never }
 export interface CmdProps         { [key: string]: never }
+export interface SystemProps      { kind: SystemPanelKind }
 
 // Map from discriminant literal → its props type
 // Used to make openWindow() generic without repetition
@@ -73,6 +75,7 @@ export type AppPropsMap = {
   minesweeper: MinesweeperProps;
   snake:       SnakeProps;
   cmd:         CmdProps;
+  system:      SystemProps;
 };
 
 export type AppType = keyof AppPropsMap;
@@ -108,6 +111,9 @@ interface AppContentProps {
   onSnakeCrash:    () => void;
   onCmdGlitch:     (ms: number) => void;
   onUnlockFile:    (filename: string) => void;
+  onDeleteNode:    (key: string) => void;
+  onRestoreNode:   (key: string) => void;
+  onUndoDelete:    () => void;
   onClose:         (id: string) => void;
   onStoryFlag:     (flag: string) => void;
   onMeaningfulInteraction: () => void;
@@ -116,7 +122,7 @@ interface AppContentProps {
 const AppContent = memo(function AppContent({
   win, corruptionLevel, onOpenFile, triggerOnce,
   deletedFiles, unlockedFiles, onSnakeCrash, onCmdGlitch, onUnlockFile, onClose,
-  onStoryFlag, onMeaningfulInteraction,
+  onDeleteNode, onRestoreNode, onUndoDelete, onStoryFlag, onMeaningfulInteraction,
 }: AppContentProps) {
   // Stable callbacks for props that capture win.id.
   // win.id is a string that never changes for a given window,
@@ -145,6 +151,9 @@ const AppContent = memo(function AppContent({
           triggerOnce=    {triggerOnce}
           deletedFiles=   {deletedFiles}
           unlockedFiles=  {unlockedFiles}
+          onDeleteNode=   {onDeleteNode}
+          onRestoreNode=  {onRestoreNode}
+          onUndoDelete=   {onUndoDelete}
           onStoryFlag=    {onStoryFlag}
           onMeaningfulInteraction={onMeaningfulInteraction}
         />
@@ -197,6 +206,9 @@ const AppContent = memo(function AppContent({
         />
       );
 
+    case 'system':
+      return <SystemPanel kind={win.appProps.kind as SystemPanelKind} />;
+
     default:
       return null;
   }
@@ -224,6 +236,13 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
     try {
       return new Set(JSON.parse(localStorage.getItem('xp_deleted') ?? '[]'));
     } catch { return new Set(); }
+  });
+
+  const [deleteHistory, setDeleteHistory] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      return JSON.parse(localStorage.getItem('xp_delete_history') ?? '[]');
+    } catch { return []; }
   });
   
   const [unlockedFiles, setUnlockedFiles] = useState<Set<string>>(() => {
@@ -254,6 +273,14 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
     onOpenStartMenu: openStartMenu,
     onFocusLogoff: focusLogoffButton,
   });
+
+  useEffect(() => {
+    localStorage.setItem('xp_deleted', JSON.stringify([...deletedFiles]));
+  }, [deletedFiles]);
+
+  useEffect(() => {
+    localStorage.setItem('xp_delete_history', JSON.stringify(deleteHistory));
+  }, [deleteHistory]);
 
   const handleSnakeCrash = useCallback(() => {
     story.markFlag('snake_crashed');
@@ -363,6 +390,35 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
     setActiveId(id);
   }, []);
 
+  const handleDeleteNode = useCallback((key: string) => {
+    setDeletedFiles(prev => new Set(prev).add(key));
+    setDeleteHistory(prev => [...prev.filter(item => item !== key), key]);
+  }, []);
+
+  const handleRestoreNode = useCallback((key: string) => {
+    setDeletedFiles(prev => {
+      const next = new Set(prev);
+      next.delete(key);
+      next.delete(key.split('/').pop() ?? key);
+      return next;
+    });
+    setDeleteHistory(prev => prev.filter(item => item !== key));
+  }, []);
+
+  const handleUndoDelete = useCallback(() => {
+    setDeleteHistory(prev => {
+      const key = [...prev].reverse().find(item => deletedFiles.has(item));
+      if (!key) return prev;
+      setDeletedFiles(files => {
+        const next = new Set(files);
+        next.delete(key);
+        next.delete(key.split('/').pop() ?? key);
+        return next;
+      });
+      return prev.filter(item => item !== key);
+    });
+  }, [deletedFiles]);
+
   const handleCloseWindow = useCallback((id: string) => {
     const win = windows.find(w => w.id === id);
     if (!win) return;
@@ -384,17 +440,13 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
       }
 
       // Second close → delete file and close
-      setDeletedFiles(prev => {
-        const next = new Set(prev).add('beach_007.jpg');
-        localStorage.setItem('xp_deleted', JSON.stringify([...next]));
-        return next;
-      });
+      handleDeleteNode('My Documents/vacation_photos/beach_007.jpg');
       closeWindow(id);
       return;
     }
 
     closeWindow(id);
-  }, [windows, closeWindow, story.canShowHardHorror]);
+  }, [windows, closeWindow, story.canShowHardHorror, handleDeleteNode]);
 
   const focusWindow = useCallback((id: string) => {
     setWindows(prev => {
@@ -464,18 +516,32 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
   }, []);
 
   const handleOpenDisplayProperties = useCallback(() => {
-    openWindow('error', {
+    openWindow('system', {
       title:           'Display Properties',
       iconEmoji:       '🖥️',
       initialSize:     { width: 420, height: 230 },
       initialPosition: { x: 280, y: 160 },
-    }, {
-      message:
-        'Display Properties\n\nTheme: Windows XP\nDesktop: Bliss\nScreen saver: None\nColor quality: Highest (32 bit)\n\nThese settings are managed by the current session.',
-    });
+    }, { kind: 'display' });
   }, [openWindow]);
 
   // ── Desktop icon / action routing ───────────────────────────────────
+  const openSystemPanel = useCallback((kind: SystemPanelKind, title: string, iconEmoji = '⚙️') => {
+    const sizes: Partial<Record<SystemPanelKind, { width: number; height: number }>> = {
+      camera: { width: 440, height: 360 },
+      storage: { width: 420, height: 330 },
+      display: { width: 460, height: 320 },
+      internet: { width: 460, height: 360 },
+      freecell: { width: 430, height: 360 },
+      hearts: { width: 430, height: 330 },
+      pinball: { width: 360, height: 500 },
+    };
+    openWindow('system', {
+      title,
+      iconEmoji,
+      initialSize: sizes[kind] ?? { width: 430, height: 320 },
+    }, { kind });
+  }, [openWindow]);
+
   const handleOpenApp = useCallback((action: DesktopAction) => {
     // explorer:FolderName
     if (action.startsWith('explorer:')) {
@@ -510,6 +576,72 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
       const filename = action.replace('notepad:', '');
       const file = findFileByName(filename);
       if (file) handleOpenFile(file);
+      return;
+    }
+
+    if (action === ACTION.CAMERA) {
+      story.markInteraction();
+      openSystemPanel('camera', 'Camera and Scanner Wizard', '📷');
+      return;
+    }
+
+    if (action === ACTION.STORAGE) {
+      story.markInteraction();
+      openSystemPanel('storage', 'Local Disk (C:) Properties', '💽');
+      return;
+    }
+
+    if (action === ACTION.DISPLAY) {
+      story.markInteraction();
+      openSystemPanel('display', 'Display Properties', '🖥️');
+      return;
+    }
+
+    if (action === ACTION.INTERNET_PROPERTIES) {
+      story.markInteraction();
+      openSystemPanel('internet', 'Internet Properties', '🌐');
+      return;
+    }
+
+    if (action === ACTION.FREECELL) {
+      story.markInteraction();
+      openSystemPanel('freecell', 'FreeCell', '🂡');
+      return;
+    }
+
+    if (action === ACTION.HEARTS) {
+      story.markInteraction();
+      openSystemPanel('hearts', 'Hearts', '♥');
+      return;
+    }
+
+    if (action === ACTION.PINBALL) {
+      story.markInteraction();
+      openSystemPanel('pinball', '3D Pinball for Windows - Space Cadet', '●');
+      return;
+    }
+
+    if (action === ACTION.NETWORK) {
+      story.markInteraction();
+      openSystemPanel('network', 'My Network Places', '🌐');
+      return;
+    }
+
+    if (action === ACTION.USER_ACCOUNTS) {
+      story.markInteraction();
+      openSystemPanel('users', 'User Accounts', '👤');
+      return;
+    }
+
+    if (action === ACTION.SOUND) {
+      story.markInteraction();
+      openSystemPanel('sound', 'Sounds and Audio Devices', '🔊');
+      return;
+    }
+
+    if (action === ACTION.SYSTEM_PROPERTIES) {
+      story.markInteraction();
+      openSystemPanel('system', 'System Properties', '⚙️');
       return;
     }
 
@@ -566,7 +698,7 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
       return;
     }
 
-  }, [displayCorruption, openWindow, makeId, story, handleOpenFile]);
+  }, [displayCorruption, openWindow, makeId, story, handleOpenFile, openSystemPanel]);
 
   const handleStartMenuApp = useCallback((action: string) => {
     if (action.startsWith('_error:')) {
@@ -679,6 +811,7 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
           onOpenApp=       {handleOpenApp}
           allowJumpscares= {story.canShowHardHorror}
           onOpenProperties={handleOpenDisplayProperties}
+          recycleHasItems= {deletedFiles.size > 0}
         />
 
         {/* Windows — rendered in z-order (last = topmost) */}
@@ -702,6 +835,9 @@ export default function DesktopOS({ onLogout, onTurnOff }: Props) {
               triggerOnce=    {triggerOnce}
               deletedFiles=   {deletedFiles}
               unlockedFiles=  {unlockedFiles}
+              onDeleteNode=   {handleDeleteNode}
+              onRestoreNode=  {handleRestoreNode}
+              onUndoDelete=   {handleUndoDelete}
               onSnakeCrash=   {handleSnakeCrash}
               onCmdGlitch=    {handleCmdGlitch}
               onUnlockFile=   {handleUnlockFile}
