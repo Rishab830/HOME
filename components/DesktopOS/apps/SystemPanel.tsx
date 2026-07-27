@@ -20,6 +20,14 @@ interface Props {
   kind: SystemPanelKind;
 }
 
+const ADMIN_PASSWORD = 'letmefree';
+const DEFAULT_DISPLAY_SETTINGS = {
+  theme: 'Windows XP',
+  desktop: 'Bliss',
+  resolution: '1024 x 768',
+  colorQuality: 'Highest (32 bit)',
+};
+
 function formatBytes(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes <= 0) return '0 KB';
   const units = ['bytes', 'KB', 'MB', 'GB'];
@@ -53,6 +61,9 @@ export default function SystemPanel({ kind }: Props) {
   const [storage, setStorage] = useState({ usage: storageUsage(), quota: 64 * 1024 * 1024 });
   const [pinballScore, setPinballScore] = useState(0);
   const [soundOn, setSoundOn] = useState(true);
+  const [displaySettings, setDisplaySettings] = useState(DEFAULT_DISPLAY_SETTINGS);
+  const [pendingDisplaySettings, setPendingDisplaySettings] = useState(DEFAULT_DISPLAY_SETTINGS);
+  const [displayStatus, setDisplayStatus] = useState('Administrator permission is required to change these settings.');
 
   useEffect(() => {
     if (kind !== 'storage') return;
@@ -114,6 +125,29 @@ export default function SystemPanel({ kind }: Props) {
     setCameraStatus('Picture captured.');
   };
 
+  const stageDisplayChange = (nextSettings: Partial<typeof displaySettings>) => {
+    setPendingDisplaySettings(prev => ({ ...prev, ...nextSettings }));
+    setDisplayStatus('Unsaved changes. Click Save Changes to apply.');
+  };
+
+  const saveDisplayChanges = () => {
+    const password = window.prompt('Administrator password required to save display changes:');
+    if (password !== ADMIN_PASSWORD) {
+      setPendingDisplaySettings(displaySettings);
+      setDisplayStatus('Access is denied. Changes were reverted.');
+      return;
+    }
+
+    setDisplaySettings(pendingDisplaySettings);
+    setDisplayStatus('Changes applied.');
+  };
+
+  const hasPendingDisplayChanges =
+    displaySettings.theme !== pendingDisplaySettings.theme ||
+    displaySettings.desktop !== pendingDisplaySettings.desktop ||
+    displaySettings.resolution !== pendingDisplaySettings.resolution ||
+    displaySettings.colorQuality !== pendingDisplaySettings.colorQuality;
+
   const cards = useMemo(() => ['A', '2', '3', '4', '5', '6', '7', '8'], []);
 
   if (kind === 'camera') {
@@ -166,10 +200,61 @@ export default function SystemPanel({ kind }: Props) {
     return (
       <div className={styles.panelWrap}>
         <div className={styles.panelHeader}>Display Properties</div>
-        <label className={styles.panelLabel}>Theme <select><option>Windows XP</option><option>Windows Classic</option></select></label>
-        <label className={styles.panelLabel}>Desktop <select><option>Bliss</option><option>None</option></select></label>
-        <label className={styles.panelLabel}>Screen resolution <input type="range" min="800" max="1600" defaultValue="1024" /></label>
-        <p className={styles.panelText}>Color quality: Highest (32 bit)</p>
+        <label className={styles.panelLabel}>
+          Theme
+          <select
+            value={pendingDisplaySettings.theme}
+            onChange={e => stageDisplayChange({ theme: e.currentTarget.value })}
+          >
+            <option>Windows XP</option>
+            <option>Windows Classic</option>
+          </select>
+        </label>
+        <label className={styles.panelLabel}>
+          Desktop
+          <select
+            value={pendingDisplaySettings.desktop}
+            onChange={e => stageDisplayChange({ desktop: e.currentTarget.value })}
+          >
+            <option>Bliss</option>
+            <option>None</option>
+            <option>Azul</option>
+            <option>Follow</option>
+          </select>
+        </label>
+        <label className={styles.panelLabel}>
+          Screen resolution
+          <select
+            value={pendingDisplaySettings.resolution}
+            onChange={e => stageDisplayChange({ resolution: e.currentTarget.value })}
+          >
+            <option>800 x 600</option>
+            <option>1024 x 768</option>
+            <option>1280 x 1024</option>
+            <option>1600 x 1200</option>
+          </select>
+        </label>
+        <label className={styles.panelLabel}>
+          Color quality
+          <select
+            value={pendingDisplaySettings.colorQuality}
+            onChange={e => stageDisplayChange({ colorQuality: e.currentTarget.value })}
+          >
+            <option>Medium (16 bit)</option>
+            <option>Highest (32 bit)</option>
+          </select>
+        </label>
+        <div className={styles.panelActions}>
+          <button
+            className={styles.xpBtn}
+            onClick={saveDisplayChanges}
+            disabled={!hasPendingDisplayChanges}
+          >
+            <span className={styles.adminButtonIcon} aria-hidden />
+            Save Changes
+          </button>
+        </div>
+        <p className={styles.panelText}>{displayStatus}</p>
       </div>
     );
   }
