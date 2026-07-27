@@ -30,7 +30,7 @@ export default function Taskbar({
     const tick = () => {
       const now = new Date();
       setTime(now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }));
-      setDate(now.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }));
+      setDate(`${now.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit' })}/2003`);
     };
     tick();
     const id = setInterval(tick, 1_000);
