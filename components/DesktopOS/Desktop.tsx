@@ -37,6 +37,12 @@ interface DesktopIcon {
 
 type IconSort = 'modified' | 'name' | 'type' | 'size';
 type IconSize = 'normal' | 'large';
+type ContextMenuState =
+  | { type: 'desktop'; x: number; y: number }
+  | { type: 'icon'; x: number; y: number; icon: DesktopIcon };
+
+const ADMIN_PASSWORD = 'letmefree';
+const PROTECTED_ICON_LABELS = new Set(['My Documents', 'My Computer', 'Recycle Bin', 'system_log.txt']);
 
 function iconKind(icon: DesktopIcon): NonNullable<DesktopIcon['kind']> {
   if (icon.kind) return icon.kind;
@@ -162,11 +168,25 @@ export default function Desktop({
   const [sortMode, setSortMode] = useState<IconSort>('modified');
   const [iconSize, setIconSize] = useState<IconSize>('normal');
   const [customIcons, setCustomIcons] = useState<DesktopIcon[]>([]);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [deletedDesktopIcons, setDeletedDesktopIcons] = useState<Set<string>>(() => {
+    if (typeof window === 'undefined') return new Set();
+    try {
+      return new Set(JSON.parse(localStorage.getItem('xp_deleted_desktop_icons') ?? '[]'));
+    } catch {
+      return new Set();
+    }
+  });
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [desktopMessage, setDesktopMessage] = useState('');
+  const messageTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const icons = useMemo(
-    () => sortIcons([...buildDesktopIcons(corruptionLevel), ...customIcons], sortMode),
-    [corruptionLevel, customIcons, sortMode]
+    () => sortIcons(
+      [...buildDesktopIcons(corruptionLevel), ...customIcons]
+        .filter(icon => !deletedDesktopIcons.has(icon.label)),
+      sortMode
+    ),
+    [corruptionLevel, customIcons, deletedDesktopIcons, sortMode]
   );
   const [selected, setSelected] = useState<string | null>(null);
 
@@ -184,9 +204,23 @@ export default function Desktop({
     };
   }, [contextMenu]);
 
+  useEffect(() => () => {
+    if (messageTimer.current) clearTimeout(messageTimer.current);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('xp_deleted_desktop_icons', JSON.stringify([...deletedDesktopIcons]));
+  }, [deletedDesktopIcons]);
+
   const runMenuAction = (action: () => void) => {
     action();
     setContextMenu(null);
+  };
+
+  const showDesktopMessage = (message: string) => {
+    if (messageTimer.current) clearTimeout(messageTimer.current);
+    setDesktopMessage(message);
+    messageTimer.current = setTimeout(() => setDesktopMessage(''), 1800);
   };
 
   const addDesktopIcon = (
@@ -214,14 +248,56 @@ export default function Desktop({
     setTimeout(() => setRefreshing(false), 350);
   };
 
+  const createShortcut = (icon: DesktopIcon) => {
+    addDesktopIcon(`Shortcut to ${icon.label}`, icon.emoji, icon.action, iconKind(icon), icon.iconSrc);
+    showDesktopMessage('Shortcut created.');
+  };
+
+  const deleteIcon = (icon: DesktopIcon) => {
+    if (PROTECTED_ICON_LABELS.has(icon.label)) {
+      const password = window.prompt('Administrator password required to delete this desktop item:');
+      if (password !== ADMIN_PASSWORD) {
+        showDesktopMessage('Access is denied.');
+        return;
+      }
+    }
+
+    const isCustomIcon = customIcons.some(customIcon => customIcon.label === icon.label);
+    if (isCustomIcon) {
+      setCustomIcons(prev => prev.filter(customIcon => customIcon.label !== icon.label));
+    } else {
+      setDeletedDesktopIcons(prev => new Set(prev).add(icon.label));
+    }
+    setSelected(null);
+    showDesktopMessage('Item deleted.');
+  };
+
+  const positionMenu = (
+    e: ReactMouseEvent<HTMLElement>,
+    menuWidth: number,
+    menuHeight: number
+  ) => ({
+    x: Math.max(4, Math.min(e.clientX, window.innerWidth - menuWidth - 8)),
+    y: Math.max(4, Math.min(e.clientY, window.innerHeight - menuHeight - 38)),
+  });
+
   const handleContextMenu = (e: ReactMouseEvent<HTMLDivElement>) => {
     e.preventDefault();
     setSelected(null);
-    const menuWidth = 210;
-    const menuHeight = 248;
     setContextMenu({
-      x: Math.max(4, Math.min(e.clientX, window.innerWidth - menuWidth - 8)),
-      y: Math.max(4, Math.min(e.clientY, window.innerHeight - menuHeight - 38)),
+      type: 'desktop',
+      ...positionMenu(e, 210, 248),
+    });
+  };
+
+  const handleIconContextMenu = (e: ReactMouseEvent<HTMLButtonElement>, icon: DesktopIcon) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setSelected(icon.label);
+    setContextMenu({
+      type: 'icon',
+      icon,
+      ...positionMenu(e, 190, 126),
     });
   };
 
@@ -255,7 +331,9 @@ export default function Desktop({
         />
       )}
 
-      {refreshing && <div className={styles.refreshFlash}>Refreshing...</div>}
+      {(refreshing || desktopMessage) && (
+        <div className={styles.refreshFlash}>{desktopMessage || 'Refreshing...'}</div>
+      )}
 
       {/* ── Desktop icons ──────────────────────────────────────── */}
       <div className={[styles.iconGrid, iconSize === 'large' ? styles.largeIcons : ''].join(' ')}>
@@ -269,6 +347,7 @@ export default function Desktop({
             onClick={()           => setSelected(icon.label)}
             onDoubleClick={()     => { setSelected(icon.label); onOpenApp(icon.action); }}
             onKeyDown={e          => e.key === 'Enter' && onOpenApp(icon.action)}
+            onContextMenu={e      => handleIconContextMenu(e, icon)}
           >
             {icon.iconSrc ? (
               <span
@@ -284,7 +363,7 @@ export default function Desktop({
         ))}
       </div>
 
-      {contextMenu && (
+      {contextMenu?.type === 'desktop' && (
         <div
           className={styles.contextMenu}
           style={{ left: contextMenu.x, top: contextMenu.y }}
@@ -323,6 +402,37 @@ export default function Desktop({
               <button onClick={() => runMenuAction(() => addDesktopIcon('New Text Document.txt', '📄', notepadAction('new'), 'file'))}>Text Document</button>
             </div>
           </div>
+          <div className={styles.separator} />
+          <button className={styles.menuButton} onClick={() => runMenuAction(onOpenProperties)}>Properties</button>
+        </div>
+      )}
+
+      {contextMenu?.type === 'icon' && (
+        <div
+          className={styles.contextMenu}
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onMouseDown={e => e.stopPropagation()}
+          role="menu"
+        >
+          <button
+            className={`${styles.menuButton} ${styles.defaultMenuButton}`}
+            onClick={() => runMenuAction(() => onOpenApp(contextMenu.icon.action))}
+          >
+            Open
+          </button>
+          <button
+            className={styles.menuButton}
+            onClick={() => runMenuAction(() => createShortcut(contextMenu.icon))}
+          >
+            Create Shortcut
+          </button>
+          <div className={styles.separator} />
+          <button
+            className={styles.menuButton}
+            onClick={() => runMenuAction(() => deleteIcon(contextMenu.icon))}
+          >
+            Delete
+          </button>
           <div className={styles.separator} />
           <button className={styles.menuButton} onClick={() => runMenuAction(onOpenProperties)}>Properties</button>
         </div>
