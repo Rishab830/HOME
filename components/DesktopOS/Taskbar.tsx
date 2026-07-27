@@ -24,10 +24,14 @@ export default function Taskbar({
   onWindowClick, onStartClick,
 }: Props) {
   const [time, setTime] = useState('');
+  const [date, setDate] = useState('');
 
   useEffect(() => {
-    const tick = () =>
-      setTime(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }));
+    const tick = () => {
+      const now = new Date();
+      setTime(now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }));
+      setDate(now.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }));
+    };
     tick();
     const id = setInterval(tick, 1_000);
     return () => clearInterval(id);
@@ -78,7 +82,10 @@ export default function Taskbar({
         {corruptionLevel >= 60 && (
           <span className={styles.trayWarning} title="System error detected" aria-label="Warning" />
         )}
-        <span className={styles.clock} aria-label="Current time">{time}</span>
+        <span className={styles.clock} aria-label={`Current date and time: ${date} ${time}`}>
+          <span>{time}</span>
+          <span className={styles.date}>{date}</span>
+        </span>
       </div>
     </div>
   );
